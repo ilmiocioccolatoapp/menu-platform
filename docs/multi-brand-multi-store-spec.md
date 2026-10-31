@@ -525,7 +525,7 @@ for brand-scoped responses. Pre-auth responses have no authorized brand context.
   validated before 304.**
 - Background sync on foreground + every N minutes.
 - **Offline window** — define explicitly before implementation (product decision, §18).
-  Recommendation: allow offline use of the last authorized cached menu for up to **72 hours**.
+  Recommendation: allow offline use of the last authorized cached menu for up to **90 days**.
   - Network failure / timeout → keep cache; retry quietly.
   - Refresh rejected / session revoked → clear protected data and force re-login.
 - Image pre-download decision: URL caching does **not** guarantee every image is available
@@ -682,7 +682,7 @@ for brand-scoped responses. Pre-auth responses have no authorized brand context.
 ## 18. Open Questions (answer before implementing the affected step)
 
 1. **Offline window** — how long may a previously authorized tablet keep operating offline?
-   Recommendation: 72 hours. Affects §11 and tablet cache policy.
+   Recommendation: 90 days. Affects §11 and tablet cache policy.
 2. **Tablet brand lock** — must every tablet show all assigned brands, or can an admin lock
    some tablets to one brand? Affects §10 login/brand-selection.
 3. **Sold-out push** — do store managers need immediate sold-out toggling on tablets, or is

@@ -14,6 +14,8 @@ class _StoreQrScannerPageState extends State<StoreQrScannerPage>
     with WidgetsBindingObserver {
   late final MobileScannerController _controller;
   String? _lastInvalidValue;
+  String? _cameraError;
+  bool _starting = false;
 
   @override
   void initState() {
@@ -24,20 +26,29 @@ class _StoreQrScannerPageState extends State<StoreQrScannerPage>
   }
 
   Future<void> _startScanner() async {
-    if (!mounted) return;
+    if (!mounted || _starting) return;
+    setState(() {
+      _starting = true;
+      _cameraError = null;
+    });
     try {
       await _controller.start();
     } on MobileScannerException catch (error) {
       if (mounted) {
-        setState(() => _lastInvalidValue = error.errorDetails?.message);
+        setState(() {
+          _cameraError = error.errorDetails?.message ??
+              'The camera could not be started. Check camera access and try again.';
+        });
       }
+    } finally {
+      if (mounted) setState(() => _starting = false);
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _startScanner();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startScanner());
     } else if (state == AppLifecycleState.paused) {
       _controller.stop();
     }
@@ -47,6 +58,7 @@ class _StoreQrScannerPageState extends State<StoreQrScannerPage>
     for (final barcode in capture.barcodes) {
       final result = StoreLoginQr.parse(barcode.rawValue);
       if (result != null) {
+        _controller.stop();
         Navigator.of(context).pop(result);
         return;
       }
@@ -80,66 +92,109 @@ class _StoreQrScannerPageState extends State<StoreQrScannerPage>
       ),
       body: Stack(
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 720,
-              height: 520,
-              child: MobileScanner(
-                controller: _controller,
-                onDetect: _onDetect,
-                errorBuilder: (context, error) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Text(
-                      error.errorCode == MobileScannerErrorCode.permissionDenied
-                          ? 'Camera permission is needed to scan a store login QR.'
-                          : 'The camera could not be started. Check camera access and try again.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white, fontSize: 18),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth.clamp(280.0, 720.0);
+              final height = constraints.maxHeight.clamp(280.0, 520.0);
+              final frameWidth = (width - 80).clamp(220.0, 560.0);
+              final frameHeight = (height - 160).clamp(180.0, 360.0);
+              return Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: width,
+                  height: height,
+                  child: ClipRect(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        MobileScanner(
+                          controller: _controller,
+                          fit: BoxFit.cover,
+                          onDetect: _onDetect,
+                          errorBuilder: (context, error) => _CameraMessage(
+                            message: error.errorCode ==
+                                    MobileScannerErrorCode.permissionDenied
+                                ? 'Camera permission is needed to scan a store login QR.'
+                                : 'The camera could not be started. Check camera access and try again.',
+                            onRetry: _startScanner,
+                          ),
+                        ),
+                        IgnorePointer(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: frameWidth,
+                                height: frameHeight,
+                                decoration: BoxDecoration(
+                                  border:
+                                      Border.all(color: Colors.white, width: 3),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 18, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.65),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text(
+                                  'Align the store QR code within the frame.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 16),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_cameraError != null || _starting)
+                          _CameraMessage(
+                            message:
+                                _starting ? 'Starting camera…' : _cameraError!,
+                            onRetry: _startScanner,
+                          ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-            ),
-          ),
-          IgnorePointer(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: SizedBox(
-                width: 720,
-                height: 520,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 560,
-                      height: 360,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white, width: 3),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.65),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Text(
-                        'Align the store QR code within the frame.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+              );
+            },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CameraMessage extends StatelessWidget {
+  const _CameraMessage({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
+        color: Colors.black.withValues(alpha: 0.8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 18)),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: onRetry,
+              child: const Text('Retry camera'),
+            ),
+          ],
+        ),
       ),
     );
   }

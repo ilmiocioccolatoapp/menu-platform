@@ -85,7 +85,7 @@ class StoreSessionController extends ChangeNotifier {
   final MenuCache cache;
   final DateTime Function() now;
   final String baseUrl;
-  static const offlineWindow = Duration(hours: 72);
+  static const offlineWindow = Duration(days: 90);
   Map<String, dynamic>? _identity;
   Map<String, dynamic>? menu;
   String? _accessToken;

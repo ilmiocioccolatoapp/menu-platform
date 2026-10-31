@@ -64,7 +64,7 @@ Map<String, dynamic> loginResponse(String store) => {
     };
 
 void main() {
-  test('offline restart stays bound to the store and expires after 72 hours',
+  test('offline restart stays bound to the store and expires after 90 days',
       () async {
     final vault = MemoryVault(), cache = MemoryCache();
     var time = DateTime.utc(2026, 10, 30);
@@ -78,7 +78,7 @@ void main() {
     await online.login('downtown', 'password');
     expect(online.menu?['store']['id'], 'downtown');
     online.dispose();
-    time = time.add(const Duration(hours: 71));
+    time = time.add(const Duration(days: 89, hours: 23));
     StoreSessionController offline() => StoreSessionController(
         vault: vault,
         cache: cache,

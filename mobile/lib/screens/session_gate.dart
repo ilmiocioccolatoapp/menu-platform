@@ -70,7 +70,7 @@ class _SessionGateState extends State<SessionGate> with WidgetsBindingObserver {
                       const Text('Contact your brand administrator for help.'),
                       if (controller.offline)
                         const Text(
-                            'Offline menu. Connect within 72 hours to renew access.'),
+                            'Offline menu. Connect within 90 days to renew access.'),
                       TextButton(
                           onPressed: () => unawaited(controller.sync()),
                           child: const Text('Sync now')),

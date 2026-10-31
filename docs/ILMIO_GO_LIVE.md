@@ -7,7 +7,7 @@ This runbook records the Il Mio v4.2 production rollout: the multi-store schema,
 - [x] The local migration chain includes a legacy baseline, Il Mio data backfill, and legacy-route adoption monitoring.
 - [x] The live legacy `Category` and `Product` schema was checked read-only against the baseline. Columns, defaults, foreign key, and RLS flags match. The unique `Category.id` key is represented as a constraint in Production, so the baseline and backfill migration now match and safely handle either constraint or standalone-index form.
 - [x] The live catalog currently has 8 categories and 19 products; all product prices pass the migration format check, and products have valid legacy category references.
-- [x] The Flutter flow uses Store ID and password, skips brand choice for one assigned menu, shows a selector for multiple menus, stores tokens with `flutter_secure_storage`, and expires offline access after 72 hours.
+- [x] The Flutter flow uses Store ID and password, skips brand choice for one assigned menu, shows a selector for multiple menus, stores tokens with `flutter_secure_storage`, and expires offline access after 90 days.
 - [x] A release migration removes direct Data API execute access from the existing Supabase `public.rls_auto_enable()` SECURITY DEFINER helper, if present, without removing its event trigger.
 - [x] The signed version `2.1.0+9` APK candidate is at `mobile/build/app/outputs/flutter-apk/app-release.apk`; it points to the production API, which is now live.
 - [x] The production API and admin are deployed at `https://ilmio-app.vercel.app` and `https://ilmio-admin.vercel.app`. `/healthz` and the admin login page return successfully; unauthenticated `/api/admin/me` correctly returns 401.
@@ -133,7 +133,7 @@ The release APK is written to `mobile/build/app/outputs/flutter-apk/app-release.
 - Multiple assigned brands show the brand selector and each menu stays scoped to its assignment.
 - Wrong store credentials fail without exposing whether the Store ID exists.
 - Token refresh and logout work; a revoked store session is rejected.
-- Offline menu access works for up to 72 hours, then asks the device to reconnect.
+- Offline menu access works for up to 90 days, then asks the device to reconnect.
 - The legacy public routes remain pinned to Il Mio during the 30-day adoption window.
 
 ## 7. Remaining production rollout

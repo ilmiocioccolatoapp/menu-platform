@@ -4,6 +4,7 @@ const argon2=require('argon2');
 const {Problem,fail}=require('./http');
 const {tokenOf}=require('./auth');
 const options={type:argon2.argon2id,memoryCost:19456,timeCost:2,parallelism:1};
+const STORE_SESSION_DAYS=90;
 const hash=value=>argon2.hash(value,options);
 const dummy=hash('dummy-store-password-for-unknown-identifiers');
 const verify=async (encoded,value)=>{try{return await argon2.verify(encoded,value);}catch{return false;}};
@@ -42,7 +43,7 @@ async function authenticate(db,body,ip,createSession) {
     await tx.store.update({where:{id:store.id},data:{lastLoginAt:new Date(),failedLogins:0,lockedUntil:null}});
     if(!createSession)return {verified:true};
     const id=crypto.randomUUID(),refreshToken=newRefresh(id);
-    const session=await tx.storeSession.create({data:{id,storeId:store.id,tokenVersion:store.tokenVersion,refreshHash:await hash(refreshToken),expiresAt:new Date(Date.now()+30*86400000),deviceLabel:typeof body.deviceLabel==='string'?body.deviceLabel.slice(0,100):null}});
+    const session=await tx.storeSession.create({data:{id,storeId:store.id,tokenVersion:store.tokenVersion,refreshHash:await hash(refreshToken),expiresAt:new Date(Date.now()+STORE_SESSION_DAYS*86400000),deviceLabel:typeof body.deviceLabel==='string'?body.deviceLabel.slice(0,100):null}});
     return {accessToken:sign(store,session),refreshToken,store:{id:store.id,name:store.name,orgId:store.orgId}};
   },{timeout:20000});
   if(result.retry)throw new Problem(429,'Too many attempts. Try again later.',result.retry);
@@ -66,7 +67,7 @@ async function loginWithQr(db,body){
     if(qr.store.status!=='active'||qr.store.org.status!=='active')return {invalid:true};
     await tx.store.update({where:{id:qr.store.id},data:{lastLoginAt:now,failedLogins:0,lockedUntil:null}});
     const id=crypto.randomUUID(),refreshToken=newRefresh(id);
-    const session=await tx.storeSession.create({data:{id,storeId:qr.store.id,tokenVersion:qr.store.tokenVersion,refreshHash:await hash(refreshToken),expiresAt:new Date(now.getTime()+30*86400000),deviceLabel:'Store tablet'}});
+    const session=await tx.storeSession.create({data:{id,storeId:qr.store.id,tokenVersion:qr.store.tokenVersion,refreshHash:await hash(refreshToken),expiresAt:new Date(now.getTime()+STORE_SESSION_DAYS*86400000),deviceLabel:'Store tablet'}});
     return {accessToken:sign(qr.store,session),refreshToken,store:{id:qr.store.id,name:qr.store.name,orgId:qr.store.orgId},loginCode:identifier};
   },{timeout:20000});
   if(result.invalid)fail(401,'Invalid or expired store login QR.');
