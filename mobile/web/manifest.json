@@ -1,11 +1,11 @@
 {
-    "name": "il_mio_cioccolato",
-    "short_name": "il_mio_cioccolato",
+    "name": "Menu Platform",
+    "short_name": "Menu Platform",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Menu Platform for digital menus.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,7 +1,7 @@
 {
   "name": "il-mio-cioccolato-backend",
   "version": "1.0.0",
-  "description": "Backend API for Il Mio Cioccolato cafe",
+  "description": "Backend API for Menu Platform digital menus",
   "main": "server.js",
   "scripts": {
     "test": "node --test test/*.test.js",

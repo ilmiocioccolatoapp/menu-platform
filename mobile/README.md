@@ -1,7 +1,7 @@
-# Il Mio Cioccolato - Mobile Gallery App
+# Menu Platform - Digital Menu App
 
 ## Description
-Flutter-based mobile gallery app for browsing Il Mio Cioccolato cafe products.
+Flutter-based app for browsing digital menus across the Menu Platform.
 
 ## Features
 - Swipeable product gallery with PageView

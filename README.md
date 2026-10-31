@@ -1,4 +1,4 @@
-# Il Mio menu platform
+# Menu Platform
 
 Menu catalog and publishing platform for multiple brands and physical stores. The repository contains:
 
