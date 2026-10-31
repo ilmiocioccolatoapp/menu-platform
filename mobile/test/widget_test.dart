@@ -143,8 +143,8 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Latte'), findsOneWidget);
-    expect(find.text('From '), findsOneWidget);
-    expect(find.text('\u20C3\u00A018.00'), findsOneWidget);
+    expect(find.text('From '), findsNothing);
+    expect(find.text('\u20C3\u00A018.00'), findsNothing);
     expect(find.text('\u20C3\u00A021.00'), findsNothing);
     await disposeGallery(tester);
   });

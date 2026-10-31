@@ -6,7 +6,6 @@ import '../models/product.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../utils/image_utils.dart';
-import '../widgets/price_text.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_details_page.dart';
 
@@ -379,7 +378,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       );
     }
 
-    // Attract mode: continuous full-screen name + price slideshow
+    // Attract mode: continuous full-screen name-only slideshow
     if (!_menuMode) {
       return _buildAttractMode();
     }
@@ -395,7 +394,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  /// Idle / attract: big image with name + price, auto-advances
+  /// Idle / attract: big image with name only, auto-advances
   Widget _buildAttractMode() {
     return Stack(
       fit: StackFit.expand,
@@ -490,7 +489,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             ),
           ),
         ),
-        // Name + price
+        // Name only; prices are shown after entering the interactive menu.
         Positioned(
           left: 32,
           right: 32,
@@ -512,63 +511,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 ),
               ),
               if (!product.available) const Chip(label: Text('Sold out')),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(AppConstants.goldAccentValue),
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: product.sizes.isNotEmpty
-                    ? product.startingSize == null
-                        ? const Text(
-                            'Unavailable',
-                            style: TextStyle(
-                              color: Color(AppConstants.darkBrownValue),
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          )
-                        : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text(
-                                'From ',
-                                style: TextStyle(
-                                  color: Color(AppConstants.darkBrownValue),
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              PriceText(
-                                product.startingSize!.price,
-                                style: const TextStyle(
-                                  color: Color(AppConstants.darkBrownValue),
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ],
-                          )
-                    : PriceText(
-                        product.price,
-                        style: const TextStyle(
-                          color: Color(AppConstants.darkBrownValue),
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-              ),
             ],
           ),
         ),

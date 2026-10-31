@@ -1,7 +1,7 @@
 name: il_mio_cioccolato
 description: Menu Platform for digital menus
 publish_to: 'none'
-version: 2.1.0+9
+version: 2.1.0+11
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

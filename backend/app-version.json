@@ -1,6 +1,6 @@
 {
-  "version": "1.0.1",
-  "build": 2,
+  "version": "2.1.0",
+  "build": 11,
   "apkUrl": "",
   "notes": "Menu names and prices update by themselves. To ship a new tablet app: upload the APK, set apkUrl, and raise build above the number in mobile/pubspec.yaml (the +N)."
 }
