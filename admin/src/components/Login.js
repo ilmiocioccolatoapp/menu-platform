@@ -2,9 +2,27 @@ import { useState } from 'react';
 import { supabase } from '../supabase';
 import { BakerySealIcon } from './Icons';
 
+const EyeIcon = ({ hidden = false }) => (
+  <svg
+    aria-hidden="true"
+    focusable="false"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+    <circle cx="12" cy="12" r="2.5" />
+    {hidden && <path d="m3 3 18 18" />}
+  </svg>
+);
+
 const Login = ({ configError, authError }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
@@ -62,27 +80,43 @@ const Login = ({ configError, authError }) => {
         {notice && <p role="status">{notice}</p>}
 
         <form onSubmit={handleSubmit}>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-            disabled={!supabase || loading}
-          />
+          <div className="auth-field">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="username"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              disabled={!supabase || loading}
+            />
+          </div>
 
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            disabled={!supabase || loading}
-          />
+          <div className="auth-field">
+            <label htmlFor="password">Password</label>
+            <div className="auth-password-field">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                disabled={!supabase || loading}
+              />
+              <button
+                className="auth-password-toggle"
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+                disabled={!supabase || loading}
+              >
+                <EyeIcon hidden={showPassword} />
+              </button>
+            </div>
+          </div>
 
           <button
             className="btn btn-primary auth-submit"
@@ -92,7 +126,7 @@ const Login = ({ configError, authError }) => {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
-        <button className="btn btn-ghost" type="button" disabled={!supabase || loading} onClick={sendReset}>Forgot password?</button>
+        <button className="btn btn-ghost auth-reset" type="button" disabled={!supabase || loading} onClick={sendReset}>Forgot password?</button>
       </section>
     </main>
   );

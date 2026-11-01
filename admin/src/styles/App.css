@@ -1117,17 +1117,60 @@ p, .section-subtitle {
   font-weight: 600;
 }
 
+.auth-field {
+  margin-bottom: 22px;
+}
+
+.auth-password-field {
+  position: relative;
+}
+
 .auth-card form input {
   width: 100%;
   padding: 11px 12px;
-  margin-bottom: 20px;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   background: #fff;
 }
 
+.auth-password-field input {
+  padding-right: 48px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 7px;
+  place-items: center;
+  color: var(--ink-muted);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  transform: translateY(-50%);
+}
+
+.auth-password-toggle:hover {
+  color: var(--primary-ink);
+  background: var(--accent-soft);
+}
+
+.auth-password-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
 .auth-submit {
   width: 100%;
+  margin-top: 2px;
+}
+
+.auth-reset {
+  display: block;
+  margin: 14px auto 0;
 }
 
 .auth-error, .auth-inline-error {
