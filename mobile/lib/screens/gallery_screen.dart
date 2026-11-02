@@ -82,13 +82,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
               ? {_selectedSubcategory}
               : _selectedMainCategory == null
                   ? null
-                  : {
-                      _selectedMainCategory,
-                      ...categories
-                          .where((category) =>
-                              category['parentId'] == _selectedMainCategory)
-                          .map((category) => category['id']),
-                    };
+                  : _categoryIdsForMain(_selectedMainCategory!);
           _filteredProducts = selectedCategoryIds == null
               ? products
               : products
@@ -219,10 +213,23 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Set<String> _categoryIdsForMain(String categoryId) {
     return {
       categoryId,
-      ..._categories
-          .where((category) => category['parentId'] == categoryId)
+      ..._descendantCategories(categoryId)
           .map((category) => category['id'] as String),
     };
+  }
+
+  List<Map<String, dynamic>> _descendantCategories(String parentId) {
+    final descendants = <Map<String, dynamic>>[];
+    final pending = <String>[parentId];
+    while (pending.isNotEmpty) {
+      final currentParent = pending.removeAt(0);
+      final children = _categories
+          .where((category) => category['parentId'] == currentParent)
+          .toList();
+      descendants.addAll(children);
+      pending.addAll(children.map((category) => category['id'] as String));
+    }
+    return descendants;
   }
 
   void _selectSubcategory(String categoryId) {
@@ -440,11 +447,91 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
 
     // Menu mode: interactive category chips + product grid
+    if (_selectedMainCategory != null && _selectedSubcategory == null) {
+      return _buildExpandedCategoryProducts(isTablet);
+    }
+
     return Column(
       children: [
         _buildCategoryButtons(isTablet),
         const SizedBox(height: 8),
         Expanded(child: _buildProductGrid()),
+      ],
+    );
+  }
+
+  Widget _buildExpandedCategoryProducts(bool isTablet) {
+    final subcategories = _descendantCategories(_selectedMainCategory!);
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 20),
+      children: [
+        _buildCategoryButtons(isTablet),
+        if (_allProducts
+            .any((product) => product.category == _selectedMainCategory))
+          _buildProductSection(
+            isTablet,
+            _categories.firstWhere(
+              (category) => category['id'] == _selectedMainCategory,
+            )['name'] as String,
+            _allProducts
+                .where((product) => product.category == _selectedMainCategory)
+                .toList(),
+          ),
+        ...subcategories.map((subcategory) {
+          final categoryId = subcategory['id'] as String;
+          final products = _allProducts
+              .where((product) => product.category == categoryId)
+              .toList();
+          if (products.isEmpty) return const SizedBox.shrink();
+
+          return _buildProductSection(
+              isTablet, subcategory['name'] as String, products);
+        }),
+      ],
+    );
+  }
+
+  Widget _buildProductSection(
+    bool isTablet,
+    String title,
+    List<Product> products,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Text(
+            title,
+            style: TextStyle(
+              color: const Color(AppConstants.darkBrownValue),
+              fontSize: isTablet ? 20 : 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 280,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: 0.72,
+          ),
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            final product = products[index];
+            final globalIndex = _filteredProducts.indexOf(product);
+            return ProductCard(
+              product: product,
+              onTap: () => _openProduct(globalIndex),
+            );
+          },
+        ),
       ],
     );
   }
