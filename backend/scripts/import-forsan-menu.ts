@@ -10,19 +10,37 @@ const { publish } = require('../platform/menu');
 const prisma = new PrismaClient();
 const menuPath = path.join(__dirname, 'forsan-menu.json');
 const addonCategory = 'ADD ONS';
-const addonTargetCategories = new Set([
-  'HOT DRINKS',
-  'COLD DRINKS',
-  'BLENDED DRINKS',
-  'SPECIALITY COFFEE',
-  'FLAVOURED ICE AMERICANO'
+const addonTargetSubcategories = new Set([
+  'Hot Drinks',
+  'Cold Drinks',
+  'Blended Drinks',
+  'Manual Brews'
 ]);
 
-const categoryNameOverrides = {
-  Burger_Sandwiches: 'Burger & Sandwiches',
-  'FLAVOURED ICE AMERICANO': 'Flavored Ice Americano',
-  'CO- FERMENTED COFFEE': 'Co-Fermented Coffee'
+const categoryMappings = {
+  'HOT DRINKS': { main: 'Drinks', subcategory: 'Hot Drinks' },
+  'COLD DRINKS': { main: 'Drinks', subcategory: 'Cold Drinks' },
+  'BOTTLED BEVERAGES': { main: 'Drinks', subcategory: 'Cold Drinks' },
+  'FLAVOURED ICE AMERICANO': { main: 'Drinks', subcategory: 'Cold Drinks' },
+  'BLENDED DRINKS': { main: 'Drinks', subcategory: 'Blended Drinks' },
+  SMOOTHIES: { main: 'Drinks', subcategory: 'Smoothies' },
+  'SPECIALITY COFFEE': { main: 'Speciality Coffee', subcategory: 'Manual Brews' },
+  'ROASTED BEANS': { main: 'Beans', subcategory: 'Roasted Beans' },
+  '250 Grms Roasted Beans Display': { main: 'Beans', subcategory: 'Roasted Beans' },
+  'CO- FERMENTED COFFEE': { main: 'Beans', subcategory: 'Co-Fermented Beans' },
+  BREAKFAST: { main: 'Food', subcategory: 'Breakfast' },
+  PIZZA: { main: 'Food', subcategory: 'Pizza' },
+  PASTA: { main: 'Food', subcategory: 'Pasta' },
+  'MAIN COURSE': { main: 'Food', subcategory: 'Main Course' },
+  APPETIZER: { main: 'Food', subcategory: 'Appetizers' },
+  'KIDS MEAL': { main: 'Food', subcategory: 'Kids Meal' },
+  'ADD ONS': { main: 'Extras', subcategory: 'Add-Ons' },
+  'SINGLE ORIGIN ADD ONS': { main: 'Extras', subcategory: 'Single Origin Add-Ons' }
 };
+
+const emptySubcategories = [
+  { main: 'Beans', subcategory: 'Green Beans' }
+];
 
 const productNameOverrides = {
   'Cripsy double chicken': 'Crispy double chicken',
@@ -64,12 +82,71 @@ function loadMenu() {
   return parsed;
 }
 
-function categoryName(sourceName) {
-  return categoryNameOverrides[sourceName] || sourceName;
-}
-
 function productName(sourceName) {
   return productNameOverrides[sourceName] || sourceName;
+}
+
+function burgerSubcategory(itemName) {
+  return /\b(burger|beef)\b/i.test(itemName) ? 'Burgers' : 'Sandwiches & Croissants';
+}
+
+function normalizeMenu(menu) {
+  const normalized = [];
+  for (const source of menu) {
+    if (source.category === 'Burger_Sandwiches') {
+      const groups = new Map();
+      for (const item of source.items) {
+        const subcategory = burgerSubcategory(item.name);
+        const key = `Food / ${subcategory}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(item);
+      }
+      for (const [name, items] of groups) {
+        normalized.push({
+          sourceCategory: source.category,
+          main: 'Food',
+          subcategory: name.slice('Food / '.length),
+          category: name,
+          items
+        });
+      }
+      continue;
+    }
+
+    const mapping = categoryMappings[source.category];
+    if (!mapping) continue;
+    normalized.push({
+      sourceCategory: source.category,
+      main: mapping.main,
+      subcategory: mapping.subcategory,
+      category: `${mapping.main} / ${mapping.subcategory}`,
+      items: source.items
+    });
+  }
+
+  for (const emptyCategory of emptySubcategories) {
+    normalized.push({
+      sourceCategory: null,
+      main: emptyCategory.main,
+      subcategory: emptyCategory.subcategory,
+      category: `${emptyCategory.main} / ${emptyCategory.subcategory}`,
+      items: []
+    });
+  }
+  const merged = new Map();
+  for (const category of normalized) {
+    const existing = merged.get(category.category);
+    if (existing) {
+      existing.items.push(...category.items);
+      existing.sourceCategories = [...new Set([...existing.sourceCategories, category.sourceCategory])];
+    } else {
+      merged.set(category.category, {
+        ...category,
+        sourceCategories: [category.sourceCategory]
+      });
+    }
+  }
+  return [...merged.values()];
 }
 
 function sizesFor(item) {
@@ -96,7 +173,6 @@ function addonGroups(addons) {
 }
 
 function productData(brand, category, item, groups) {
-  const sourceCategory = category.sourceName;
   const sizes = sizesFor(item);
   return {
     brandId: brand.id,
@@ -111,7 +187,7 @@ function productData(brand, category, item, groups) {
     currency: brand.currency,
     isActive: true,
     sizes,
-    addOnGroups: addonTargetCategories.has(sourceCategory) ? groups : []
+    addOnGroups: addonTargetSubcategories.has(category.subcategory) ? groups : []
   };
 }
 
@@ -121,9 +197,20 @@ function emptySummary() {
     categoriesUpdated: 0,
     productsCreated: 0,
     productsUpdated: 0,
+    categoriesRetired: 0,
+    productsRetired: 0,
     addOnsAttached: 0,
-    published: false
+    published: false,
+    categoryBreakdown: []
   };
+}
+
+function categoryBreakdown(menu) {
+  return menu.map(category => ({
+    mainCategory: category.main,
+    subcategory: category.subcategory,
+    itemCount: category.items.length
+  }));
 }
 
 async function findTargets(db) {
@@ -165,13 +252,16 @@ async function findTargets(db) {
 
 async function importMenu(db, targets, menu, dryRun) {
   const summary = emptySummary();
+  summary.categoryBreakdown = categoryBreakdown(menu);
   const existingCategories = await db.category.findMany({
     where: { brandId: targets.brand.id },
     select: { id: true, code: true, name: true }
   });
   const categoriesByCode = new Map(existingCategories.map(category => [category.code, category]));
   const sourceCategories = new Map();
-  const addonItems = menu.find(category => category.category === addonCategory)?.items || [];
+  const addonItems = menu
+    .filter(category => category.sourceCategories.includes(addonCategory))
+    .flatMap(category => category.items);
   const groups = addonGroups(addonItems);
 
   for (const [sortOrder, source] of menu.entries()) {
@@ -181,7 +271,7 @@ async function importMenu(db, targets, menu, dryRun) {
     const data = {
       brandId: targets.brand.id,
       code,
-      name: categoryName(source.category),
+      name: source.category,
       icon: '📦',
       sortOrder,
       isActive: true
@@ -198,6 +288,7 @@ async function importMenu(db, targets, menu, dryRun) {
   }
 
   const categories = [...sourceCategories.values()];
+  const targetCategoryIds = categories.map(category => category.id);
   if (dryRun) {
     const existingProducts = await db.product.findMany({
       where: { brandId: targets.brand.id },
@@ -210,9 +301,15 @@ async function importMenu(db, targets, menu, dryRun) {
       for (const item of source.items) {
         if (productKeys.has(`${category.id}:${productName(item.name)}`)) summary.productsUpdated += 1;
         else summary.productsCreated += 1;
-        if (addonTargetCategories.has(source.category)) summary.addOnsAttached += 1;
+        if (addonTargetSubcategories.has(source.subcategory)) summary.addOnsAttached += 1;
       }
     }
+    summary.categoriesRetired = await db.category.count({
+      where: { brandId: targets.brand.id, id: { notIn: targetCategoryIds } }
+    });
+    summary.productsRetired = await db.product.count({
+      where: { brandId: targets.brand.id, categoryId: { notIn: targetCategoryIds }, isActive: true }
+    });
     return summary;
   }
 
@@ -220,7 +317,7 @@ async function importMenu(db, targets, menu, dryRun) {
     const category = sourceCategories.get(source.category);
     for (const [sortOrder, item] of source.items.entries()) {
       const name = productName(item.name);
-      const data = productData(targets.brand, { ...category, sourceName: source.category }, item, groups);
+      const data = productData(targets.brand, { ...category, subcategory: source.subcategory }, item, groups);
       const existing = await db.product.findFirst({
         where: { brandId: targets.brand.id, categoryId: category.id, name },
         select: { id: true }
@@ -232,9 +329,20 @@ async function importMenu(db, targets, menu, dryRun) {
         await db.product.create({ data: { ...data, sortOrder } });
         summary.productsCreated += 1;
       }
-      if (addonTargetCategories.has(source.category)) summary.addOnsAttached += 1;
+      if (addonTargetSubcategories.has(source.subcategory)) summary.addOnsAttached += 1;
     }
   }
+
+  const retiredProducts = await db.product.updateMany({
+    where: { brandId: targets.brand.id, categoryId: { notIn: targetCategoryIds }, isActive: true },
+    data: { isActive: false }
+  });
+  const retiredCategories = await db.category.updateMany({
+    where: { brandId: targets.brand.id, id: { notIn: targetCategoryIds }, isActive: true },
+    data: { isActive: false }
+  });
+  summary.productsRetired = retiredProducts.count;
+  summary.categoriesRetired = retiredCategories.count;
 
   await db.storeBrand.update({
     where: { id: targets.assignment.id },
@@ -248,7 +356,7 @@ async function main() {
   const shouldPublish = process.argv.includes('--publish');
   if (shouldPublish && dryRun) throw new Error('--dry-run and --publish cannot be used together.');
 
-  const menu = loadMenu();
+  const menu = normalizeMenu(loadMenu());
   const targets = await findTargets(prisma);
   const summary = await importMenu(prisma, targets, menu, dryRun);
 
