@@ -431,6 +431,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildMainContent(bool isTablet) {
+    if (_menuMode) return _buildCategoryAccordion(isTablet);
+
     if (_filteredProducts.isEmpty) {
       return Column(
         children: [
@@ -446,11 +448,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
       return _buildAttractMode();
     }
 
-    // Menu mode: interactive category chips + product grid
-    if (_selectedMainCategory != null && _selectedSubcategory == null) {
-      return _buildExpandedCategoryProducts(isTablet);
-    }
-
     return Column(
       children: [
         _buildCategoryButtons(isTablet),
@@ -460,14 +457,72 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  Widget _buildExpandedCategoryProducts(bool isTablet) {
-    final subcategories = _descendantCategories(_selectedMainCategory!);
+  Widget _buildCategoryAccordion(bool isTablet) {
+    final mainCategories =
+        _categories.where((category) => category['parentId'] == null).toList();
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: mainCategories.map((category) {
+        final categoryId = category['id'] as String;
+        final isExpanded = categoryId == _selectedMainCategory;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Semantics(
+              button: true,
+              expanded: isExpanded,
+              label: '${category['name']} category',
+              child: InkWell(
+                onTap: () => isExpanded
+                    ? _goBackInHierarchy()
+                    : _selectMainCategory(categoryId),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8D0B3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isExpanded
+                            ? Icons.keyboard_arrow_down_rounded
+                            : Icons.chevron_right_rounded,
+                        color: const Color(AppConstants.darkBrownValue),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        category['name'] as String,
+                        style: TextStyle(
+                          color: const Color(AppConstants.darkBrownValue),
+                          fontSize: isTablet ? 18 : 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (isExpanded) _buildExpandedCategoryProducts(isTablet),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildExpandedCategoryProducts(bool isTablet) {
+    final subcategories = _descendantCategories(_selectedMainCategory!);
+
+    return Column(
       children: [
-        _buildCategoryButtons(isTablet),
         if (_allProducts
             .any((product) => product.category == _selectedMainCategory))
           _buildProductSection(
