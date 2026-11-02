@@ -461,60 +461,62 @@ class _GalleryScreenState extends State<GalleryScreen> {
     final mainCategories =
         _categories.where((category) => category['parentId'] == null).toList();
 
-    return ListView(
+    return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: mainCategories.map((category) {
-        final categoryId = category['id'] as String;
-        final isExpanded = categoryId == _selectedMainCategory;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Semantics(
-              button: true,
-              expanded: isExpanded,
-              label: '${category['name']} category',
-              child: InkWell(
-                onTap: () => isExpanded
-                    ? _goBackInHierarchy()
-                    : _selectMainCategory(categoryId),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  margin: const EdgeInsets.only(bottom: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8D0B3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isExpanded
-                            ? Icons.keyboard_arrow_down_rounded
-                            : Icons.chevron_right_rounded,
-                        color: const Color(AppConstants.darkBrownValue),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        category['name'] as String,
-                        style: TextStyle(
-                          color: const Color(AppConstants.darkBrownValue),
-                          fontSize: isTablet ? 18 : 16,
-                          fontWeight: FontWeight.w800,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
+              children: mainCategories.map((category) {
+                final categoryId = category['id'] as String;
+                final isExpanded = categoryId == _selectedMainCategory;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Semantics(
+                    button: true,
+                    expanded: isExpanded,
+                    label: '${category['name']} category',
+                    child: InkWell(
+                      onTap: () => isExpanded
+                          ? _goBackInHierarchy()
+                          : _selectMainCategory(categoryId),
+                      borderRadius: BorderRadius.circular(24),
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 48),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isExpanded
+                              ? Theme.of(context).colorScheme.primary
+                              : const Color(0xFFE8D0B3),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Text(
+                          category['name'] as String,
+                          style: TextStyle(
+                            color: isExpanded
+                                ? Colors.white
+                                : const Color(AppConstants.darkBrownValue),
+                            fontSize: isTablet ? 14 : 13,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              }).toList(),
             ),
-            if (isExpanded) _buildExpandedCategoryProducts(isTablet),
-          ],
-        );
-      }).toList(),
+          ),
+          if (_selectedMainCategory != null)
+            _buildExpandedCategoryProducts(isTablet),
+        ],
+      ),
     );
   }
 
