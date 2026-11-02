@@ -34,7 +34,7 @@ export const authService={
  getBootstrap:async()=> (await api.get('/admin/bootstrap')).data.data
 };
 const formatted=(amount,currency)=>(currency==='EUR'?'€':currency+' ')+Number(amount).toFixed(2);
-const mapCategory=c=>({...c,_id:c.id,dbId:c.id,id:c.code,order:c.sortOrder,count:c._count?.products??0});
+const mapCategory=c=>({...c,_id:c.id,dbId:c.id,id:c.code,order:c.sortOrder,parentId:c.parentId,parent:c.parent, count:c._count?.products??0});
 const mapProduct=p=>({...p,_id:p.id,dbId:p.id,title:p.name,category:p.category?.code||p.legacyCategoryCode,image:p.imageUrl,price:formatted(p.priceAmount,p.currency),available:p.isActive});
 export function createCatalogServices(brand){
  const prefix='/admin/brands/'+encodeURIComponent(brand.id);
@@ -62,8 +62,8 @@ export function createCatalogServices(brand){
   },
   categoryService:{
    getAllCategories:async()=> (await api.get(prefix+'/categories')).data.data.map(mapCategory),
-   createCategory:async data=>({data:mapCategory((await api.post(prefix+'/categories',{code:data.id,name:data.name,icon:data.icon,sortOrder:data.order})).data.data)}),
-   updateCategory:async(id,data)=>({data:mapCategory((await api.put(prefix+'/categories/'+encodeURIComponent(id),{code:data.id,name:data.name,icon:data.icon,sortOrder:data.order})).data.data)}),
+   createCategory:async data=>({data:mapCategory((await api.post(prefix+'/categories',{code:data.id,name:data.name,icon:data.icon,sortOrder:data.order,parentId:data.parentId||null})).data.data)}),
+   updateCategory:async(id,data)=>({data:mapCategory((await api.put(prefix+'/categories/'+encodeURIComponent(id),{code:data.id,name:data.name,icon:data.icon,sortOrder:data.order,parentId:data.parentId||null})).data.data)}),
    deleteCategory:async id=>api.delete(prefix+'/categories/'+encodeURIComponent(id))
   }
  };

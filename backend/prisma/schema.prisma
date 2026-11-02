@@ -42,26 +42,26 @@ model Brand {
 }
 
 model Store {
-  id           String         @id @default(cuid())
-  orgId        String
-  name         String
-  slug         String
-  address      String?
-  phone        String?
-  timezone     String         @default("Asia/Dubai")
-  status       String         @default("active")
-  loginCode    String         @unique
-  passwordHash String
-  tokenVersion Int            @default(0)
-  revision     Int            @default(0)
-  lastLoginAt  DateTime?      @db.Timestamptz(3)
-  failedLogins Int            @default(0)
-  lockedUntil  DateTime?      @db.Timestamptz(3)
-  createdAt    DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime       @updatedAt @db.Timestamptz(3)
-  org          Organization   @relation(fields: [orgId], references: [id], onDelete: Restrict)
-  assignments  StoreBrand[]
-  sessions     StoreSession[]
+  id            String              @id @default(cuid())
+  orgId         String
+  name          String
+  slug          String
+  address       String?
+  phone         String?
+  timezone      String              @default("Asia/Dubai")
+  status        String              @default("active")
+  loginCode     String              @unique
+  passwordHash  String
+  tokenVersion  Int                 @default(0)
+  revision      Int                 @default(0)
+  lastLoginAt   DateTime?           @db.Timestamptz(3)
+  failedLogins  Int                 @default(0)
+  lockedUntil   DateTime?           @db.Timestamptz(3)
+  createdAt     DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime            @updatedAt @db.Timestamptz(3)
+  org           Organization        @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  assignments   StoreBrand[]
+  sessions      StoreSession[]
   loginQrTokens StoreLoginQrToken[]
 
   @@unique([orgId, slug])
@@ -93,8 +93,8 @@ model StoreBrand {
 
 model AdminProfile {
   id               String            @id @default(cuid())
-  supabaseUserId   String?            @unique
-  email            String @unique
+  supabaseUserId   String?           @unique
+  email            String            @unique
   name             String?
   isPlatformAdmin  Boolean           @default(false)
   status           String            @default("active")
@@ -131,22 +131,26 @@ model BrandMembership {
 }
 
 model Category {
-  id        String    @id @default(cuid()) @map("dbId")
+  id        String     @id @default(cuid()) @map("dbId")
   brandId   String
-  code      String    @map("id")
+  parentId  String?
+  code      String     @map("id")
   name      String
-  icon      String    @default("📦")
-  sortOrder Int       @default(0) @map("order")
+  icon      String     @default("📦")
+  sortOrder Int        @default(0) @map("order")
   imageUrl  String?
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
-  brand     Brand     @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime   @default(now()) @updatedAt @db.Timestamptz(3)
+  brand     Brand      @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Category[] @relation("CategoryHierarchy")
   products  Product[]
 
   @@unique([brandId, code])
   @@unique([id, brandId])
   @@index([brandId, sortOrder])
+  @@index([brandId, parentId, sortOrder])
 }
 
 model Product {
@@ -179,17 +183,17 @@ model Product {
 }
 
 model ProductStoreOverride {
-  id           String     @id @default(cuid())
-  storeBrandId String
-  productId    String
-  brandId      String
-  priceAmount  Decimal?   @db.Decimal(10, 2)
-  isSoldOut    Boolean?
-  unavailableOptionIds Json @default("[]")
-  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
-  storeBrand   StoreBrand @relation(fields: [storeBrandId, brandId], references: [id, brandId], onDelete: Cascade)
-  product      Product    @relation(fields: [productId, brandId], references: [id, brandId], onDelete: Cascade)
+  id                   String     @id @default(cuid())
+  storeBrandId         String
+  productId            String
+  brandId              String
+  priceAmount          Decimal?   @db.Decimal(10, 2)
+  isSoldOut            Boolean?
+  unavailableOptionIds Json       @default("[]")
+  createdAt            DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime   @updatedAt @db.Timestamptz(3)
+  storeBrand           StoreBrand @relation(fields: [storeBrandId, brandId], references: [id, brandId], onDelete: Cascade)
+  product              Product    @relation(fields: [productId, brandId], references: [id, brandId], onDelete: Cascade)
 
   @@unique([storeBrandId, productId])
   @@index([productId, brandId])
@@ -224,13 +228,13 @@ model StoreSession {
 }
 
 model StoreLoginQrToken {
-  id        String    @id @default(cuid())
-  storeId   String
-  tokenHash String    @unique
-  expiresAt DateTime  @db.Timestamptz(3)
+  id         String    @id @default(cuid())
+  storeId    String
+  tokenHash  String    @unique
+  expiresAt  DateTime  @db.Timestamptz(3)
   consumedAt DateTime? @db.Timestamptz(3)
-  createdAt DateTime  @default(now()) @db.Timestamptz(3)
-  store     Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  store      Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@index([storeId, expiresAt])
 }
@@ -288,6 +292,6 @@ model LegacyRouteHit {
 }
 
 model LegacyRouteMonitor {
-  id        String   @id
+  id        String    @id
   startedAt DateTime? @db.Timestamptz(3)
 }

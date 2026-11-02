@@ -12,8 +12,12 @@ class PublishedBrandApi extends ApiService {
   PublishedBrandApi(this.brand);
   @override
   Future<List<Map<String, dynamic>>> fetchCategories() async =>
-      List<Map<String, dynamic>>.from((brand['categories'] as List).map(
-          (c) => {'id': c['id'], 'name': c['name'], 'order': c['sortOrder']}));
+      List<Map<String, dynamic>>.from((brand['categories'] as List).map((c) => {
+            'id': c['id'],
+            'name': c['name'],
+            'order': c['sortOrder'],
+            'parentId': c['parentId']
+          }));
   @override
   Future<List<Product>> fetchAvailableProducts() async =>
       (brand['categories'] as List)

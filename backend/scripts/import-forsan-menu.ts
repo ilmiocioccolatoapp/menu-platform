@@ -63,6 +63,7 @@ const categoryMappings = {
 const emptySubcategories = [
   { main: 'Beans', subcategory: 'Green Beans' }
 ];
+const mainCategories = ['Drinks', 'Speciality Coffee', 'Beans', 'Food', 'Extras'];
 
 const productNameOverrides = {
   'Cripsy double chicken': 'Crispy double chicken',
@@ -306,6 +307,30 @@ async function importMenu(db, targets, menu, dryRun) {
     .flatMap(category => category.items);
   const groups = addonGroups(addonItems, originAddonItems);
 
+  const mainCategoryRecords = new Map();
+  for (const [sortOrder, name] of mainCategories.entries()) {
+    const code = slug(name);
+    const existing = categoriesByCode.get(code);
+    const data = {
+      brandId: targets.brand.id,
+      code,
+      name,
+      icon: '📦',
+      sortOrder,
+      isActive: true,
+      parentId: null
+    };
+    let category = existing;
+    if (existing) {
+      summary.categoriesUpdated += 1;
+      if (!dryRun) category = await db.category.update({ where: { id: existing.id }, data });
+    } else {
+      summary.categoriesCreated += 1;
+      if (!dryRun) category = await db.category.create({ data });
+    }
+    mainCategoryRecords.set(name, category || { id: `dry-run-${code}`, code });
+  }
+
   for (const [sortOrder, source] of menu.entries()) {
     process.stderr.write(`Preparing category ${sortOrder + 1}/${menu.length}: ${source.category}\n`);
     const code = slug(source.category);
@@ -313,10 +338,11 @@ async function importMenu(db, targets, menu, dryRun) {
     const data = {
       brandId: targets.brand.id,
       code,
-      name: source.category,
+      name: source.subcategory,
       icon: '📦',
-      sortOrder,
-      isActive: true
+      sortOrder: sortOrder + mainCategories.length,
+      isActive: true,
+      parentId: mainCategoryRecords.get(source.main).id
     };
     let category = existing;
     if (existing) {
@@ -329,7 +355,7 @@ async function importMenu(db, targets, menu, dryRun) {
     sourceCategories.set(source.category, category || { id: `dry-run-${code}`, code });
   }
 
-  const categories = [...sourceCategories.values()];
+  const categories = [...mainCategoryRecords.values(), ...sourceCategories.values()];
   const targetCategoryIds = categories.map(category => category.id);
   if (dryRun) {
     const existingProducts = await db.product.findMany({
@@ -375,15 +401,22 @@ async function importMenu(db, targets, menu, dryRun) {
     }
   }
 
-  const retiredProducts = await db.product.updateMany({
-    where: { brandId: targets.brand.id, categoryId: { notIn: targetCategoryIds }, isActive: true },
-    data: { isActive: false }
+  const retiredProducts = await db.product.findMany({
+    where: { brandId: targets.brand.id, categoryId: { notIn: targetCategoryIds } },
+    select: { id: true }
   });
-  const retiredCategories = await db.category.updateMany({
-    where: { brandId: targets.brand.id, id: { notIn: targetCategoryIds }, isActive: true },
-    data: { isActive: false }
+  if (retiredProducts.length) {
+    await db.productStoreOverride.deleteMany({
+      where: { brandId: targets.brand.id, productId: { in: retiredProducts.map(product => product.id) } }
+    });
+    await db.product.deleteMany({
+      where: { brandId: targets.brand.id, id: { in: retiredProducts.map(product => product.id) } }
+    });
+  }
+  const retiredCategories = await db.category.deleteMany({
+    where: { brandId: targets.brand.id, id: { notIn: targetCategoryIds } }
   });
-  summary.productsRetired = retiredProducts.count;
+  summary.productsRetired = retiredProducts.length;
   summary.categoriesRetired = retiredCategories.count;
 
   await db.storeBrand.update({

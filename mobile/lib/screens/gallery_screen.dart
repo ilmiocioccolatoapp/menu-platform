@@ -191,16 +191,24 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   void _filterByCategory(String categoryId) {
     _onUserInteraction();
+    final descendantIds = <String>{categoryId};
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (final category in _categories) {
+        if (descendantIds.contains(category['parentId']) &&
+            descendantIds.add(category['id'] as String)) {
+          changed = true;
+        }
+      }
+    }
     setState(() {
       _selectedCategory = categoryId;
       if (categoryId == 'all') {
         _filteredProducts = _allProducts;
       } else {
         _filteredProducts = _allProducts
-            .where(
-              (product) =>
-                  product.category.toLowerCase() == categoryId.toLowerCase(),
-            )
+            .where((product) => descendantIds.contains(product.category))
             .toList();
       }
       _currentPage = 0;
@@ -630,57 +638,95 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Widget _buildCategoryButtons(bool isTablet) {
     if (_categories.isEmpty) return const SizedBox.shrink();
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 12),
-      child: Row(
-        children: _categories.map((category) {
-          final categoryId = category['id'] as String;
-          final categoryName = category['name'] as String;
-          final isActive = categoryId == _selectedCategory;
+    final mainCategories = _categories
+        .where((category) =>
+            category['id'] == 'all' || category['parentId'] == null)
+        .toList();
+    final childrenByParent = <String, List<Map<String, dynamic>>>{};
+    for (final category
+        in _categories.where((category) => category['parentId'] != null)) {
+      final parentId = category['parentId'] as String;
+      childrenByParent.putIfAbsent(parentId, () => []).add(category);
+    }
 
-          return Padding(
-            padding: EdgeInsets.only(right: isTablet ? 12 : 8),
-            child: GestureDetector(
-              onTap: () => _filterByCategory(categoryId),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                padding: EdgeInsets.symmetric(
-                  horizontal: isTablet ? 20 : 14,
-                  vertical: isTablet ? 10 : 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? Theme.of(context).colorScheme.primary
-                      : const Color(0xFFE8D0B3),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: isActive
-                      ? [
-                          BoxShadow(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : [],
-                ),
-                child: Text(
-                  categoryName,
-                  style: TextStyle(
-                    color: isActive
-                        ? Colors.white
-                        : const Color(AppConstants.darkBrownValue),
-                    fontWeight: FontWeight.w600,
-                    fontSize: isTablet ? 14 : 13,
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: mainCategories.map((main) {
+          final mainId = main['id'] as String;
+          final children =
+              childrenByParent[mainId] ?? const <Map<String, dynamic>>[];
+          if (mainId == 'all') return _categoryChip(main, isTablet);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 4),
+                child: Semantics(
+                  button: true,
+                  label: 'Filter ${main['name']}',
+                  child: GestureDetector(
+                    onTap: () => _filterByCategory(mainId),
+                    child: Text(main['name'] as String,
+                        style: TextStyle(
+                          color: const Color(AppConstants.darkBrownValue),
+                          fontWeight: FontWeight.bold,
+                          fontSize: isTablet ? 16 : 14,
+                        )),
                   ),
                 ),
               ),
-            ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                    children: children
+                        .map((category) => _categoryChip(category, isTablet))
+                        .toList()),
+              ),
+            ],
           );
         }).toList(),
+      ),
+    );
+  }
+
+  Widget _categoryChip(Map<String, dynamic> category, bool isTablet) {
+    return Padding(
+      padding: EdgeInsets.only(right: isTablet ? 12 : 8),
+      child: Semantics(
+        button: true,
+        selected: category['id'] == _selectedCategory,
+        label: 'Filter ${category['name']}',
+        child: GestureDetector(
+          onTap: () => _filterByCategory(category['id'] as String),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 20 : 14,
+                vertical: isTablet ? 10 : 8,
+              ),
+              decoration: BoxDecoration(
+                color: category['id'] == _selectedCategory
+                    ? Theme.of(context).colorScheme.primary
+                    : const Color(0xFFE8D0B3),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Text(
+                category['name'] as String,
+                style: TextStyle(
+                  color: category['id'] == _selectedCategory
+                      ? Colors.white
+                      : const Color(AppConstants.darkBrownValue),
+                  fontWeight: FontWeight.w600,
+                  fontSize: isTablet ? 14 : 13,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

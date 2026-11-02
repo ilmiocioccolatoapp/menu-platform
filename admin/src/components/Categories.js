@@ -18,7 +18,8 @@ const Categories = () => {
     id: '',
     name: '',
     icon: '✨',
-    order: 0
+    order: 0,
+    parentId: ''
   });
 
   const handleAdd = () => {
@@ -28,6 +29,7 @@ const Categories = () => {
       name: '',
       icon: '✨',
       order: categories.length + 1
+      ,parentId: ''
     });
     setShowModal(true);
   };
@@ -39,6 +41,7 @@ const Categories = () => {
       name: category.name,
       icon: category.icon || '✨',
       order: category.order || 0
+      ,parentId: category.parentId || ''
     });
     setShowModal(true);
   };
@@ -124,6 +127,7 @@ const Categories = () => {
             </div>
 
             <h3 className="category-name">{cat.name}</h3>
+            {cat.parent && <div className="category-count">↳ {cat.parent.name}</div>}
 
             <div className="category-count">
               {cat.count !== undefined ? `${cat.count} ${cat.count === 1 ? 'product' : 'products'}` : 'Active category'}
@@ -164,6 +168,16 @@ const Categories = () => {
             </div>
 
             <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label>Parent Main Category</label>
+                <select name="parentId" value={formData.parentId} onChange={handleInputChange}>
+                  <option value="">None (Main category)</option>
+                  {categories.filter(category => category.id !== editingCategory?.id && !category.parentId).map(category => (
+                    <option key={category._id || category.dbId} value={category._id || category.dbId}>{category.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="form-group">
                 <label>Category Identifier (Slug) *</label>
                 <input

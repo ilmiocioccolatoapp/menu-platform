@@ -4,9 +4,9 @@ const brandShape = b => ({id:b.id,name:b.name,slug:b.slug,logoUrl:b.logoUrl,prim
 async function resolveMenu(db, assignmentId) {
   const a = await db.storeBrand.findUnique({where:{id:assignmentId},include:{store:{include:{org:true}},brand:{include:{org:true}},overrides:true}});
   if (!a || a.status !== 'active' || a.store.status !== 'active' || a.store.org.status !== 'active' || a.brand.status !== 'active' || a.brand.org.status !== 'active') fail(404, 'Active assignment not found.');
-  const categories = await db.category.findMany({where:{brandId:a.brandId,isActive:true},orderBy:[{sortOrder:'asc'},{id:'asc'}],include:{products:{where:{brandId:a.brandId,isActive:true},orderBy:[{sortOrder:'asc'},{createdAt:'desc'},{id:'asc'}]}}});
+  const categories = await db.category.findMany({where:{brandId:a.brandId,isActive:true},orderBy:[{sortOrder:'asc'},{id:'asc'}],include:{parent:{select:{id:true,code:true,name:true}},products:{where:{brandId:a.brandId,isActive:true},orderBy:[{sortOrder:'asc'},{createdAt:'desc'},{id:'asc'}]}}});
   const overrides = new Map(a.overrides.map(o => [o.productId,o]));
-  return {...brandShape(a.brand),storeBrandId:a.id,categories:categories.map(c=>({id:c.id,code:c.code,name:c.name,icon:c.icon,imageUrl:c.imageUrl,sortOrder:c.sortOrder,items:c.products.map(p=>{
+  return {...brandShape(a.brand),storeBrandId:a.id,categories:categories.map(c=>({id:c.id,code:c.code,name:c.name,parentId:c.parentId,parent:c.parent,icon:c.icon,imageUrl:c.imageUrl,sortOrder:c.sortOrder,items:c.products.map(p=>{
     const o=overrides.get(p.id);
     const unavailable=new Set(o?.unavailableOptionIds||[]);
     return {id:p.id,name:p.name,description:p.description,ingredients:p.ingredients,imageUrl:p.imageUrl,priceAmount:String(o?.priceAmount ?? p.priceAmount),currency:p.currency,availability:o?.isSoldOut ? 'soldout':'available',sizes:(p.sizes||[]).map(size=>({...size,available:!unavailable.has(size.id)})),addOnGroups:(p.addOnGroups||[]).map(group=>({...group,options:group.options.map(option=>({...option,available:!unavailable.has(option.id)}))})),createdAt:p.createdAt.toISOString(),updatedAt:p.updatedAt.toISOString()};
