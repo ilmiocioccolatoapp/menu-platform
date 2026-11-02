@@ -175,6 +175,7 @@ async function importMenu(db, targets, menu, dryRun) {
   const groups = addonGroups(addonItems);
 
   for (const [sortOrder, source] of menu.entries()) {
+    process.stderr.write(`Preparing category ${sortOrder + 1}/${menu.length}: ${source.category}\n`);
     const code = slug(source.category);
     const existing = categoriesByCode.get(code);
     const data = {
@@ -204,6 +205,7 @@ async function importMenu(db, targets, menu, dryRun) {
     });
     const productKeys = new Set(existingProducts.map(product => `${product.categoryId}:${product.name}`));
     for (const source of menu) {
+      process.stderr.write(`Importing products: ${source.category}\n`);
       const category = sourceCategories.get(source.category);
       for (const item of source.items) {
         if (productKeys.has(`${category.id}:${productName(item.name)}`)) summary.productsUpdated += 1;
@@ -248,9 +250,7 @@ async function main() {
 
   const menu = loadMenu();
   const targets = await findTargets(prisma);
-  const summary = dryRun
-    ? await importMenu(prisma, targets, menu, true)
-    : await prisma.$transaction(tx => importMenu(tx, targets, menu, false), { timeout: 120000 });
+  const summary = await importMenu(prisma, targets, menu, dryRun);
 
   if (shouldPublish) {
     await publish(prisma, null, targets.brand.id, [targets.store.id]);
