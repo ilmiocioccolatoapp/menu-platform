@@ -78,10 +78,20 @@ class _GalleryScreenState extends State<GalleryScreen> {
         setState(() {
           _categories = categories;
           _allProducts = products;
-          _filteredProducts = _selectedSubcategory == null
+          final selectedCategoryIds = _selectedSubcategory != null
+              ? {_selectedSubcategory}
+              : _selectedMainCategory == null
+                  ? null
+                  : categories
+                      .where((category) =>
+                          category['parentId'] == _selectedMainCategory)
+                      .map((category) => category['id'])
+                      .toSet();
+          _filteredProducts = selectedCategoryIds == null
               ? products
               : products
-                  .where((product) => product.category == _selectedSubcategory)
+                  .where((product) =>
+                      selectedCategoryIds.contains(product.category))
                   .toList();
           _currentPage = 0;
           _isLoading = false;
@@ -193,10 +203,16 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   void _selectMainCategory(String categoryId) {
     _onUserInteraction();
+    final childIds = _categories
+        .where((category) => category['parentId'] == categoryId)
+        .map((category) => category['id'] as String)
+        .toSet();
     setState(() {
       _selectedMainCategory = categoryId;
       _selectedSubcategory = null;
-      _filteredProducts = _allProducts;
+      _filteredProducts = _allProducts
+          .where((product) => childIds.contains(product.category))
+          .toList();
       _currentPage = 0;
     });
   }
@@ -217,9 +233,16 @@ class _GalleryScreenState extends State<GalleryScreen> {
     setState(() {
       if (_selectedSubcategory != null) {
         _selectedSubcategory = null;
-        _filteredProducts = _allProducts;
+        final childIds = _categories
+            .where((category) => category['parentId'] == _selectedMainCategory)
+            .map((category) => category['id'] as String)
+            .toSet();
+        _filteredProducts = _allProducts
+            .where((product) => childIds.contains(product.category))
+            .toList();
       } else {
         _selectedMainCategory = null;
+        _filteredProducts = _allProducts;
       }
       _currentPage = 0;
     });
@@ -396,7 +419,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildMainContent(bool isTablet) {
-    if (_menuMode && _selectedSubcategory == null) {
+    if (_menuMode && _selectedMainCategory == null) {
       return _buildCategoryButtons(isTablet);
     }
 
@@ -404,6 +427,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       return Column(
         children: [
           const SizedBox(height: 10),
+          if (_selectedMainCategory != null) _buildCategoryButtons(isTablet),
           Expanded(child: _buildEmptyState()),
         ],
       );
@@ -417,6 +441,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     // Menu mode: interactive category chips + product grid
     return Column(
       children: [
+        _buildCategoryButtons(isTablet),
         const SizedBox(height: 8),
         Expanded(child: _buildProductGrid()),
       ],
