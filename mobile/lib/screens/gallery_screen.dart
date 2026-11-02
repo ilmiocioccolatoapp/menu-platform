@@ -44,7 +44,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   int _currentPage = 0;
-  String _selectedCategory = 'all';
+  String? _selectedMainCategory;
+  String? _selectedSubcategory;
 
   /// How long without touch before returning to attract mode
   static const Duration _idleTimeout = Duration(seconds: 45);
@@ -75,14 +76,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
       if (mounted) {
         setState(() {
-          _categories = [
-            {'id': 'all', 'name': 'All Items'},
-            ...categories,
-          ];
+          _categories = categories;
           _allProducts = products;
-          _filteredProducts = products;
+          _filteredProducts = _selectedSubcategory == null
+              ? products
+              : products
+                  .where((product) => product.category == _selectedSubcategory)
+                  .toList();
           _currentPage = 0;
-          _selectedCategory = 'all';
           _isLoading = false;
         });
         if (_menuMode) {
@@ -140,7 +141,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
     setState(() {
       _menuMode = false;
       _viewingProduct = false;
-      _selectedCategory = 'all';
+      _selectedMainCategory = null;
+      _selectedSubcategory = null;
       _filteredProducts = _allProducts;
       _currentPage = 0;
     });
@@ -189,27 +191,35 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  void _filterByCategory(String categoryId) {
+  void _selectMainCategory(String categoryId) {
     _onUserInteraction();
-    final descendantIds = <String>{categoryId};
-    var changed = true;
-    while (changed) {
-      changed = false;
-      for (final category in _categories) {
-        if (descendantIds.contains(category['parentId']) &&
-            descendantIds.add(category['id'] as String)) {
-          changed = true;
-        }
-      }
-    }
     setState(() {
-      _selectedCategory = categoryId;
-      if (categoryId == 'all') {
+      _selectedMainCategory = categoryId;
+      _selectedSubcategory = null;
+      _filteredProducts = _allProducts;
+      _currentPage = 0;
+    });
+  }
+
+  void _selectSubcategory(String categoryId) {
+    _onUserInteraction();
+    setState(() {
+      _selectedSubcategory = categoryId;
+      _filteredProducts = _allProducts
+          .where((product) => product.category == categoryId)
+          .toList();
+      _currentPage = 0;
+    });
+  }
+
+  void _goBackInHierarchy() {
+    _onUserInteraction();
+    setState(() {
+      if (_selectedSubcategory != null) {
+        _selectedSubcategory = null;
         _filteredProducts = _allProducts;
       } else {
-        _filteredProducts = _allProducts
-            .where((product) => descendantIds.contains(product.category))
-            .toList();
+        _selectedMainCategory = null;
       }
       _currentPage = 0;
     });
@@ -226,6 +236,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
         if (didPop) return;
         if (_viewingProduct) {
           _closeProduct();
+        } else if (_selectedMainCategory != null) {
+          _goBackInHierarchy();
         } else {
           _exitMenuMode();
         }
@@ -243,14 +255,22 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     onPointerUp: _onUserInteraction,
                     child: !_menuMode
                         ? (_filteredProducts.isEmpty
-                            ? GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: _enterMenuMode,
-                                child: _buildEmptyState(),
+                            ? Semantics(
+                                button: true,
+                                label: 'Open menu',
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: _enterMenuMode,
+                                  child: _buildEmptyState(),
+                                ),
                               )
-                            : GestureDetector(
-                                onTap: _enterMenuMode,
-                                child: _buildAttractMode(),
+                            : Semantics(
+                                button: true,
+                                label: 'Open menu',
+                                child: GestureDetector(
+                                  onTap: _enterMenuMode,
+                                  child: _buildAttractMode(),
+                                ),
                               ))
                         : _viewingProduct
                             ? _buildProductViewer()
@@ -376,11 +396,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildMainContent(bool isTablet) {
+    if (_menuMode && _selectedSubcategory == null) {
+      return _buildCategoryButtons(isTablet);
+    }
+
     if (_filteredProducts.isEmpty) {
       return Column(
         children: [
           const SizedBox(height: 10),
-          if (_menuMode) _buildCategoryButtons(true),
           Expanded(child: _buildEmptyState()),
         ],
       );
@@ -394,8 +417,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
     // Menu mode: interactive category chips + product grid
     return Column(
       children: [
-        const SizedBox(height: 10),
-        _buildCategoryButtons(true),
         const SizedBox(height: 8),
         Expanded(child: _buildProductGrid()),
       ],
@@ -566,7 +587,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
         children: [
           if (_menuMode)
             TextButton.icon(
-              onPressed: _exitMenuMode,
+              onPressed: _selectedMainCategory == null
+                  ? _exitMenuMode
+                  : _goBackInHierarchy,
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white,
                 backgroundColor: Colors.white.withValues(alpha: 0.15),
@@ -636,93 +659,106 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildCategoryButtons(bool isTablet) {
-    if (_categories.isEmpty) return const SizedBox.shrink();
-
-    final mainCategories = _categories
-        .where((category) =>
-            category['id'] == 'all' || category['parentId'] == null)
-        .toList();
-    final childrenByParent = <String, List<Map<String, dynamic>>>{};
-    for (final category
-        in _categories.where((category) => category['parentId'] != null)) {
-      final parentId = category['parentId'] as String;
-      childrenByParent.putIfAbsent(parentId, () => []).add(category);
+    if (_categories.isEmpty) {
+      return const Center(
+        child: Text(
+          'No menu categories are available. Pull down to refresh.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Color(AppConstants.darkBrownValue)),
+        ),
+      );
     }
 
+    final visibleCategories = _selectedMainCategory == null
+        ? _categories.where((category) => category['parentId'] == null).toList()
+        : _categories
+            .where((category) => category['parentId'] == _selectedMainCategory)
+            .toList();
+
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 12),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 24 : 12,
+        vertical: 12,
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: mainCategories.map((main) {
-          final mainId = main['id'] as String;
-          final children =
-              childrenByParent[mainId] ?? const <Map<String, dynamic>>[];
-          if (mainId == 'all') return _categoryChip(main, isTablet);
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 4),
-                child: Semantics(
-                  button: true,
-                  label: 'Filter ${main['name']}',
-                  child: GestureDetector(
-                    onTap: () => _filterByCategory(mainId),
-                    child: Text(main['name'] as String,
-                        style: TextStyle(
-                          color: const Color(AppConstants.darkBrownValue),
-                          fontWeight: FontWeight.bold,
-                          fontSize: isTablet ? 16 : 14,
-                        )),
-                  ),
-                ),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_selectedMainCategory != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _goBackInHierarchy,
+                icon: const Icon(Icons.arrow_back_rounded),
+                label: const Text('Back to main categories'),
               ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                    children: children
-                        .map((category) => _categoryChip(category, isTablet))
-                        .toList()),
-              ),
-            ],
-          );
-        }).toList(),
+            ),
+          Text(
+            _selectedMainCategory == null
+                ? 'Choose a category'
+                : (_categories.firstWhere(
+                    (category) => category['id'] == _selectedMainCategory,
+                  )['name'] as String),
+            style: TextStyle(
+              color: const Color(AppConstants.darkBrownValue),
+              fontSize: isTablet ? 22 : 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (visibleCategories.isEmpty)
+            const Text(
+              'No subcategories are available in this category.',
+              style: TextStyle(color: Color(AppConstants.darkBrownValue)),
+            )
+          else
+            Wrap(
+              spacing: isTablet ? 14 : 10,
+              runSpacing: isTablet ? 14 : 10,
+              children: visibleCategories
+                  .map(
+                    (category) => _categoryChip(
+                      category,
+                      isTablet,
+                      onTap: _selectedMainCategory == null
+                          ? () => _selectMainCategory(category['id'] as String)
+                          : () => _selectSubcategory(category['id'] as String),
+                    ),
+                  )
+                  .toList(),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _categoryChip(Map<String, dynamic> category, bool isTablet) {
-    return Padding(
-      padding: EdgeInsets.only(right: isTablet ? 12 : 8),
-      child: Semantics(
-        button: true,
-        selected: category['id'] == _selectedCategory,
-        label: 'Filter ${category['name']}',
-        child: GestureDetector(
-          onTap: () => _filterByCategory(category['id'] as String),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              padding: EdgeInsets.symmetric(
-                horizontal: isTablet ? 20 : 14,
-                vertical: isTablet ? 10 : 8,
-              ),
-              decoration: BoxDecoration(
-                color: category['id'] == _selectedCategory
-                    ? Theme.of(context).colorScheme.primary
-                    : const Color(0xFFE8D0B3),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Text(
-                category['name'] as String,
-                style: TextStyle(
-                  color: category['id'] == _selectedCategory
-                      ? Colors.white
-                      : const Color(AppConstants.darkBrownValue),
-                  fontWeight: FontWeight.w600,
-                  fontSize: isTablet ? 14 : 13,
-                ),
+  Widget _categoryChip(
+    Map<String, dynamic> category,
+    bool isTablet, {
+    required VoidCallback onTap,
+  }) {
+    return Semantics(
+      button: true,
+      label: 'Open ${category['name']}',
+      child: GestureDetector(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: isTablet ? 24 : 18,
+              vertical: isTablet ? 16 : 12,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8D0B3),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Text(
+              category['name'] as String,
+              style: TextStyle(
+                color: const Color(AppConstants.darkBrownValue),
+                fontWeight: FontWeight.w700,
+                fontSize: isTablet ? 17 : 15,
               ),
             ),
           ),
