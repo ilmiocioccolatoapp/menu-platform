@@ -719,19 +719,19 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 label: const Text('Back to main categories'),
               ),
             ),
-          Text(
-            _selectedMainCategory == null
-                ? 'Choose a category'
-                : (_categories.firstWhere(
-                    (category) => category['id'] == _selectedMainCategory,
-                  )['name'] as String),
-            style: TextStyle(
-              color: const Color(AppConstants.darkBrownValue),
-              fontSize: isTablet ? 22 : 18,
-              fontWeight: FontWeight.bold,
+          if (_selectedMainCategory != null) ...[
+            Text(
+              _categories.firstWhere(
+                (category) => category['id'] == _selectedMainCategory,
+              )['name'] as String,
+              style: TextStyle(
+                color: const Color(AppConstants.darkBrownValue),
+                fontSize: isTablet ? 18 : 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 8),
+          ],
           if (visibleCategories.isEmpty)
             const Text(
               'No subcategories are available in this category.',
@@ -772,8 +772,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
           constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isTablet ? 24 : 18,
-              vertical: isTablet ? 16 : 12,
+              horizontal: isTablet ? 16 : 12,
+              vertical: isTablet ? 10 : 8,
             ),
             decoration: BoxDecoration(
               color: const Color(0xFFE8D0B3),
@@ -784,7 +784,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
               style: TextStyle(
                 color: const Color(AppConstants.darkBrownValue),
                 fontWeight: FontWeight.w700,
-                fontSize: isTablet ? 17 : 15,
+                fontSize: isTablet ? 14 : 13,
               ),
             ),
           ),
