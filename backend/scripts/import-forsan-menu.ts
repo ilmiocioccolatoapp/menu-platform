@@ -10,11 +10,33 @@ const { publish } = require('../platform/menu');
 const prisma = new PrismaClient();
 const menuPath = path.join(__dirname, 'forsan-menu.json');
 const addonCategory = 'ADD ONS';
-const addonTargetSubcategories = new Set([
+const drinkSubcategories = new Set([
   'Hot Drinks',
   'Cold Drinks',
   'Blended Drinks',
   'Manual Brews'
+]);
+const foodSubcategories = new Set(['Burgers', 'Sandwiches & Croissants']);
+const drinkAddonNames = new Set([
+  'Vanilla Syrup',
+  'Almond milk',
+  'Soya Milk',
+  'Oat Milk',
+  'Coconut Milk',
+  'Caramel Syrup',
+  'Lactose Free',
+  'Extra Sweet milk',
+  'Whipped cream',
+  'EXTRA SHOT'
+]);
+const foodAddonNames = new Set([
+  'Cheese',
+  'Bacon',
+  'Fresh Avocado',
+  'Chicken',
+  'Turkey ham',
+  'Extra omellete',
+  'halloumi cheese'
 ]);
 
 const categoryMappings = {
@@ -159,21 +181,38 @@ function sizesFor(item) {
   }));
 }
 
-function addonGroups(addons) {
-  return [{
-    id: 'add-ons',
-    name: 'Add-ons',
+function addonGroup(id, name, items) {
+  return {
+    id,
+    name,
     selection: 'multiple',
-    options: addons.map(item => ({
+    options: items.map(item => ({
       id: `addon-${slug(item.name)}`,
       name: productName(item.name),
       priceAmount: money(item.price)
     }))
-  }];
+  };
+}
+
+function addonGroups(addons, originAddons) {
+  const drinkAddons = addons.filter(item => drinkAddonNames.has(item.name));
+  const foodAddons = addons.filter(item => foodAddonNames.has(item.name));
+  return {
+    drinks: [
+      addonGroup('drink-add-ons', 'Drink Add-ons', drinkAddons),
+      addonGroup('single-origin-coffee', 'Single Origin Coffee', originAddons)
+    ],
+    food: [addonGroup('food-add-ons', 'Food Add-ons', foodAddons)]
+  };
 }
 
 function productData(brand, category, item, groups) {
   const sizes = sizesFor(item);
+  const addOnGroups = drinkSubcategories.has(category.subcategory)
+    ? groups.drinks
+    : foodSubcategories.has(category.subcategory)
+      ? groups.food
+      : [];
   return {
     brandId: brand.id,
     categoryId: category.id,
@@ -187,7 +226,7 @@ function productData(brand, category, item, groups) {
     currency: brand.currency,
     isActive: true,
     sizes,
-    addOnGroups: addonTargetSubcategories.has(category.subcategory) ? groups : []
+    addOnGroups
   };
 }
 
@@ -262,7 +301,10 @@ async function importMenu(db, targets, menu, dryRun) {
   const addonItems = menu
     .filter(category => category.sourceCategories.includes(addonCategory))
     .flatMap(category => category.items);
-  const groups = addonGroups(addonItems);
+  const originAddonItems = menu
+    .filter(category => category.sourceCategories.includes('SINGLE ORIGIN ADD ONS'))
+    .flatMap(category => category.items);
+  const groups = addonGroups(addonItems, originAddonItems);
 
   for (const [sortOrder, source] of menu.entries()) {
     process.stderr.write(`Preparing category ${sortOrder + 1}/${menu.length}: ${source.category}\n`);
@@ -301,7 +343,7 @@ async function importMenu(db, targets, menu, dryRun) {
       for (const item of source.items) {
         if (productKeys.has(`${category.id}:${productName(item.name)}`)) summary.productsUpdated += 1;
         else summary.productsCreated += 1;
-        if (addonTargetSubcategories.has(source.subcategory)) summary.addOnsAttached += 1;
+        if (drinkSubcategories.has(source.subcategory) || foodSubcategories.has(source.subcategory)) summary.addOnsAttached += 1;
       }
     }
     summary.categoriesRetired = await db.category.count({
@@ -329,7 +371,7 @@ async function importMenu(db, targets, menu, dryRun) {
         await db.product.create({ data: { ...data, sortOrder } });
         summary.productsCreated += 1;
       }
-      if (addonTargetSubcategories.has(source.subcategory)) summary.addOnsAttached += 1;
+      if (drinkSubcategories.has(source.subcategory) || foodSubcategories.has(source.subcategory)) summary.addOnsAttached += 1;
     }
   }
 
