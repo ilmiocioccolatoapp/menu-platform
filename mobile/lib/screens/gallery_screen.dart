@@ -82,11 +82,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
               ? {_selectedSubcategory}
               : _selectedMainCategory == null
                   ? null
-                  : categories
-                      .where((category) =>
-                          category['parentId'] == _selectedMainCategory)
-                      .map((category) => category['id'])
-                      .toSet();
+                  : {
+                      _selectedMainCategory,
+                      ...categories
+                          .where((category) =>
+                              category['parentId'] == _selectedMainCategory)
+                          .map((category) => category['id']),
+                    };
           _filteredProducts = selectedCategoryIds == null
               ? products
               : products
@@ -203,18 +205,24 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   void _selectMainCategory(String categoryId) {
     _onUserInteraction();
-    final childIds = _categories
-        .where((category) => category['parentId'] == categoryId)
-        .map((category) => category['id'] as String)
-        .toSet();
+    final categoryIds = _categoryIdsForMain(categoryId);
     setState(() {
       _selectedMainCategory = categoryId;
       _selectedSubcategory = null;
       _filteredProducts = _allProducts
-          .where((product) => childIds.contains(product.category))
+          .where((product) => categoryIds.contains(product.category))
           .toList();
       _currentPage = 0;
     });
+  }
+
+  Set<String> _categoryIdsForMain(String categoryId) {
+    return {
+      categoryId,
+      ..._categories
+          .where((category) => category['parentId'] == categoryId)
+          .map((category) => category['id'] as String),
+    };
   }
 
   void _selectSubcategory(String categoryId) {
@@ -233,12 +241,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
     setState(() {
       if (_selectedSubcategory != null) {
         _selectedSubcategory = null;
-        final childIds = _categories
-            .where((category) => category['parentId'] == _selectedMainCategory)
-            .map((category) => category['id'] as String)
-            .toSet();
+        final categoryIds = _categoryIdsForMain(_selectedMainCategory!);
         _filteredProducts = _allProducts
-            .where((product) => childIds.contains(product.category))
+            .where((product) => categoryIds.contains(product.category))
             .toList();
       } else {
         _selectedMainCategory = null;
@@ -419,15 +424,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildMainContent(bool isTablet) {
-    if (_menuMode && _selectedMainCategory == null) {
-      return _buildCategoryButtons(isTablet);
-    }
-
     if (_filteredProducts.isEmpty) {
       return Column(
         children: [
           const SizedBox(height: 10),
-          if (_selectedMainCategory != null) _buildCategoryButtons(isTablet),
+          _buildCategoryButtons(isTablet),
           Expanded(child: _buildEmptyState()),
         ],
       );
