@@ -62,8 +62,8 @@ export function createCatalogServices(brand){
   },
   categoryService:{
    getAllCategories:async()=> (await api.get(prefix+'/categories')).data.data.map(mapCategory),
-   createCategory:async data=>({data:mapCategory((await api.post(prefix+'/categories',{code:data.id,name:data.name,icon:data.icon,sortOrder:data.order,parentId:data.parentId||null})).data.data)}),
-   updateCategory:async(id,data)=>({data:mapCategory((await api.put(prefix+'/categories/'+encodeURIComponent(id),{code:data.id,name:data.name,icon:data.icon,sortOrder:data.order,parentId:data.parentId||null})).data.data)}),
+   createCategory:async data=>({data:mapCategory((await api.post(prefix+'/categories',{code:data.id,name:data.name,sortOrder:data.order,parentId:data.parentId||null})).data.data)}),
+   updateCategory:async(id,data)=>({data:mapCategory((await api.put(prefix+'/categories/'+encodeURIComponent(id),{code:data.id,name:data.name,sortOrder:data.order,parentId:data.parentId||null})).data.data)}),
    deleteCategory:async id=>api.delete(prefix+'/categories/'+encodeURIComponent(id))
   }
  };

@@ -42,7 +42,13 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
   const [imagePreview, setImagePreview] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [mainCategory, setMainCategory] = useState('');
   const { categories, saveProduct, brand } = useCatalog();
+  const mainCategories = categories.filter(category => !category.parentId);
+  const selectedMain = mainCategories.find(category => category.id === mainCategory);
+  const subcategories = categories.filter(
+    category => category.parentId === selectedMain?.dbId
+  );
 
   const getErrorMessage = (error) => {
     if (!error) return 'Failed to save product';
@@ -68,14 +74,28 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
     }
   }, [product]);
 
+  useEffect(() => {
+    if (!product || !categories.length) return;
+    const selectedCategory = categories.find(category => category.id === product.category);
+    const parent = categories.find(category => category.dbId === selectedCategory?.parentId);
+    setMainCategory(parent?.id || selectedCategory?.id || '');
+  }, [product, categories]);
+
   useEffect(() => { if (!product && brand?.currency) setFormData(previous => ({...previous, price: (brand.currency === 'EUR' ? '€' : brand.currency + ' ') + '0.00'})); }, [brand?.currency, product]);
 
-  const defaultCategory = categories[0]?.id;
+  const defaultCategory = mainCategories[0]?.id;
+  const defaultCategoryDbId = mainCategories[0]?.dbId;
   useEffect(() => {
     if (!product && defaultCategory) {
-      setFormData(previous => ({ ...previous, category: defaultCategory }));
+      const children = categories.filter(
+        category => category.parentId === defaultCategoryDbId
+      );
+      setMainCategory(defaultCategory);
+      setFormData(previous => previous.category
+        ? previous
+        : { ...previous, category: children[0]?.id || defaultCategory });
     }
-  }, [product, defaultCategory]);
+  }, [product, defaultCategory, defaultCategoryDbId, categories]);
 
   useEffect(() => {
     if (!imageFile) return undefined;
@@ -88,6 +108,10 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
     const newErrors = {};
 
     if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (selectedMain && subcategories.length > 0
+      && !subcategories.some(category => category.id === formData.category)) {
+      newErrors.category = 'Select a subcategory';
+    }
     if (!imageFile && !imagePreview) newErrors.image = 'Image is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
     if (!formData.ingredients.trim()) newErrors.ingredients = 'Ingredients are required';
@@ -123,6 +147,20 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
       price: currency === '€' ? `€${amount}` : `${currency} ${amount}`
     }));
     if (errors.price) setErrors(prev => ({ ...prev, price: '' }));
+  };
+
+  const handleMainCategoryChange = (e) => {
+    const nextMainCategory = e.target.value;
+    const nextMain = mainCategories.find(category => category.id === nextMainCategory);
+    const children = categories.filter(
+      category => category.parentId === nextMain?.dbId
+    );
+    setMainCategory(nextMainCategory);
+    setFormData(previous => ({
+      ...previous,
+      category: children[0]?.id || nextMainCategory
+    }));
+    setErrors(previous => ({ ...previous, category: '' }));
   };
 
   const handleImageChange = (e) => {
@@ -188,28 +226,37 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="category">Category *</label>
+          <label htmlFor="mainCategory">Main Category *</label>
+          <select
+            id="mainCategory"
+            value={mainCategory}
+            onChange={handleMainCategoryChange}
+          >
+            {mainCategories.map(category => (
+              <option key={category.id} value={category.id}>{category.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="category">Subcategory *</label>
           <select
             id="category"
             name="category"
             value={formData.category}
             onChange={handleChange}
+            disabled={subcategories.length === 0}
+            className={errors.category ? 'error' : ''}
           >
-            {categories.length > 0 ? (
-              categories.map(cat => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.parent ? `${cat.parent.name} / ${cat.name}` : cat.name}
-                </option>
+            {subcategories.length > 0 ? (
+              subcategories.map(category => (
+                <option key={category.id} value={category.id}>{category.name}</option>
               ))
             ) : (
-              <>
-                <option value="pastries">Pastries</option>
-                <option value="drinks">Drinks</option>
-                <option value="desserts">Desserts</option>
-                <option value="specialties">Specialties</option>
-              </>
+              <option value={mainCategory}>No subcategories — use main category</option>
             )}
           </select>
+          {errors.category && <span className="error-message">{errors.category}</span>}
         </div>
 
         <div className="form-group">

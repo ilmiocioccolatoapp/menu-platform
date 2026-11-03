@@ -303,7 +303,8 @@ class _SessionGateState extends State<SessionGate> with WidgetsBindingObserver {
                   key: ValueKey(
                       '${controller.storeId}:${brand['id']}:${brand['menuVersion']}'),
                   apiService: PublishedBrandApi(brand),
-                  brandName: brand['name'],
+                  presentation: PublishedBrandApi(brand).presentation,
+                  brandName: controller.storeName,
                   headerLeadingAction: brands.length > 1
                       ? IconButton(
                           onPressed: () => setState(() => selectedBrand = null),

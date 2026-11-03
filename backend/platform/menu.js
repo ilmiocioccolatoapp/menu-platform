@@ -1,6 +1,13 @@
 const { fail } = require('./http');
 const { audit, lockBrand } = require('./audit');
-const brandShape = b => ({id:b.id,name:b.name,slug:b.slug,logoUrl:b.logoUrl,primaryColor:b.primaryColor,currency:b.currency,timezone:b.timezone});
+const defaultPresentation = {
+  version: 1,
+  categoryNavigation: 'horizontal',
+  productCardDensity: 'comfortable',
+  showImages: true,
+  showDescriptions: true
+};
+const brandShape = b => ({id:b.id,name:b.name,slug:b.slug,logoUrl:b.logoUrl,primaryColor:b.primaryColor,currency:b.currency,timezone:b.timezone,presentation:{...defaultPresentation,...(b.presentation||{})}});
 async function resolveMenu(db, assignmentId) {
   const a = await db.storeBrand.findUnique({where:{id:assignmentId},include:{store:{include:{org:true}},brand:{include:{org:true}},overrides:true}});
   if (!a || a.status !== 'active' || a.store.status !== 'active' || a.store.org.status !== 'active' || a.brand.status !== 'active' || a.brand.org.status !== 'active') fail(404, 'Active assignment not found.');
@@ -40,4 +47,4 @@ async function publishedMenu(db, storeId) {
     ? db.$transaction(tx=>readPublishedMenu(tx,storeId),{isolationLevel:'RepeatableRead'})
     : readPublishedMenu(db,storeId);
 }
-module.exports={brandShape,resolveMenu,publish,publishedMenu};
+module.exports={brandShape,resolveMenu,publish,publishedMenu,defaultPresentation};

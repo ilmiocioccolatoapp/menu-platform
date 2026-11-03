@@ -80,7 +80,7 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
    const [brands,organizationRows]=await Promise.all([
      measure(req,'brandFindManyMs',()=>db.brand.findMany({
        where:brandWhere(req.admin),
-       select:{id:true,orgId:true,slug:true,name:true,logoUrl:true,primaryColor:true,currency:true,timezone:true,status:true,createdAt:true},
+       select:{id:true,orgId:true,slug:true,name:true,logoUrl:true,primaryColor:true,currency:true,timezone:true,presentation:true,status:true,createdAt:true},
        orderBy:{name:'asc'}
      })),
      measure(req,'organizationFindManyMs',()=>db.organization.findMany({
@@ -209,6 +209,14 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
     const v=req.body[field];data[field]=field==='name'?text(v,'Brand name'):field==='slug'?code(v,'Brand slug'):field==='logoUrl'?imageUrl(v):field==='currency'?currency(v):field==='timezone'?timezone(v):field==='status'?status(v):(/^#[0-9a-f]{6}$/i.test(v)?v:fail(400,'Color must be a six-digit hex color.'));
    }
    if(!req.admin.isPlatformAdmin&&data.slug!==undefined&&data.slug!==b.slug)fail(403,'Only a platform administrator can change a brand code.');
+   if(req.body.presentation!==undefined){
+    const p=req.body.presentation;
+    if(!p||typeof p!=='object'||Array.isArray(p))fail(400,'Presentation must be an object.');
+    if(p.categoryNavigation!==undefined&&!['horizontal','accordion'].includes(p.categoryNavigation))fail(400,'Unsupported category navigation.');
+    if(p.productCardDensity!==undefined&&!['compact','comfortable'].includes(p.productCardDensity))fail(400,'Unsupported product card density.');
+    for(const field of ['showImages','showDescriptions'])if(p[field]!==undefined&&typeof p[field]!=='boolean')fail(400,`${field} must be boolean.`);
+    data.presentation={version:1,categoryNavigation:p.categoryNavigation||'horizontal',productCardDensity:p.productCardDensity||'comfortable',showImages:p.showImages!==false,showDescriptions:p.showDescriptions!==false};
+   }
    if(data.currency && data.currency!==b.currency && await tx.product.count({where:{brandId:b.id}}))fail(409,'Currency cannot change while the brand has products. Create a separate catalog or migrate amounts explicitly.');
    const updated=await tx.brand.update({where:{id:b.id},data});
    if(data.status!==undefined)await tx.store.updateMany({where:{assignments:{some:{brandId:b.id}}},data:{revision:{increment:1}}});

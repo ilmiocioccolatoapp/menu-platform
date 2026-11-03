@@ -28,6 +28,7 @@ model Brand {
   primaryColor String            @default("#8B4513")
   currency     String            @default("AED") @db.Char(3)
   timezone     String            @default("Asia/Dubai")
+  presentation Json?
   status       String            @default("active")
   createdAt    DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime          @updatedAt @db.Timestamptz(3)

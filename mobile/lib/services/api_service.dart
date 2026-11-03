@@ -10,6 +10,8 @@ class ApiService {
 class PublishedBrandApi extends ApiService {
   final Map<String, dynamic> brand;
   PublishedBrandApi(this.brand);
+  Map<String, dynamic> get presentation =>
+      Map<String, dynamic>.from((brand['presentation'] as Map?) ?? const {});
   @override
   Future<List<Map<String, dynamic>>> fetchCategories() async =>
       List<Map<String, dynamic>>.from((brand['categories'] as List).map((c) => {

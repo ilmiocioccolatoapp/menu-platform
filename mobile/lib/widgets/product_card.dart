@@ -8,8 +8,18 @@ import 'price_text.dart';
 class ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback? onTap;
+  final bool showImage;
+  final bool showDescription;
+  final bool compact;
 
-  const ProductCard({super.key, required this.product, this.onTap});
+  const ProductCard({
+    super.key,
+    required this.product,
+    this.onTap,
+    this.showImage = true,
+    this.showDescription = true,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -35,47 +45,48 @@ class ProductCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                flex: 6,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(18),
-                  ),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CachedNetworkImage(
-                        imageUrl: imgUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: const Color(0xFFF3E9DC),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Theme.of(context).colorScheme.primary,
+              if (showImage)
+                Expanded(
+                  flex: compact ? 5 : 6,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(18),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CachedNetworkImage(
+                          imageUrl: imgUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            color: const Color(0xFFF3E9DC),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: const Color(0xFFF3E9DC),
+                            child: const Icon(
+                              Icons.image_not_supported_outlined,
+                              color: Color(AppConstants.darkBrownValue),
+                              size: 36,
                             ),
                           ),
                         ),
-                        errorWidget: (context, url, error) => Container(
-                          color: const Color(0xFFF3E9DC),
-                          child: const Icon(
-                            Icons.image_not_supported_outlined,
-                            color: Color(AppConstants.darkBrownValue),
-                            size: 36,
-                          ),
-                        ),
-                      ),
-                      if (!product.available)
-                        const Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Chip(label: Text('Sold out'))),
-                    ],
+                        if (!product.available)
+                          const Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Chip(label: Text('Sold out'))),
+                      ],
+                    ),
                   ),
                 ),
-              ),
               Expanded(
-                flex: 4,
+                flex: compact ? 3 : 4,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
                   child: Column(
@@ -92,19 +103,21 @@ class ProductCard extends StatelessWidget {
                           height: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Expanded(
-                        child: Text(
-                          product.description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            height: 1.35,
-                            color: Colors.grey.shade700,
+                      if (showDescription) ...[
+                        const SizedBox(height: 4),
+                        Expanded(
+                          child: Text(
+                            product.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: compact ? 11.5 : 12.5,
+                              height: 1.35,
+                              color: Colors.grey.shade700,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                       const SizedBox(height: 8),
                       Row(
                         children: [

@@ -17,7 +17,6 @@ const Categories = () => {
   const [formData, setFormData] = useState({
     id: '',
     name: '',
-    icon: '✨',
     order: 0,
     parentId: ''
   });
@@ -27,7 +26,6 @@ const Categories = () => {
     setFormData({
       id: '',
       name: '',
-      icon: '✨',
       order: categories.length + 1
       ,parentId: ''
     });
@@ -39,7 +37,6 @@ const Categories = () => {
     setFormData({
       id: category.id,
       name: category.name,
-      icon: category.icon || '✨',
       order: category.order || 0
       ,parentId: category.parentId || ''
     });
@@ -121,9 +118,6 @@ const Categories = () => {
           <div key={cat.id} className="category-card">
             <div className="category-card-top">
               <span className="category-order">Position #{cat.order || '—'}</span>
-              {cat.icon && (
-                <span style={{ fontSize: '1.25rem' }}>{cat.icon}</span>
-              )}
             </div>
 
             <h3 className="category-name">{cat.name}</h3>
@@ -200,17 +194,6 @@ const Categories = () => {
                   onChange={handleInputChange}
                   required
                   placeholder="e.g. Viennoiserie & Pastries"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Icon Symbol (Kiosk Header)</label>
-                <input
-                  type="text"
-                  name="icon"
-                  value={formData.icon}
-                  onChange={handleInputChange}
-                  placeholder="e.g. 🥐 or ✨"
                 />
               </div>
 

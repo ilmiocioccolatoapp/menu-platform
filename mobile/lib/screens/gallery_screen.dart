@@ -13,6 +13,7 @@ class GalleryScreen extends StatefulWidget {
   const GalleryScreen({
     super.key,
     this.apiService,
+    this.presentation = const {},
     this.brandName = 'Menu',
     this.headerLeadingAction,
     this.headerTrailingAction,
@@ -21,6 +22,7 @@ class GalleryScreen extends StatefulWidget {
   final String brandName;
 
   final ApiService? apiService;
+  final Map<String, dynamic> presentation;
   final Widget? headerLeadingAction;
   final Widget? headerTrailingAction;
 
@@ -431,7 +433,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildMainContent(bool isTablet) {
-    if (_menuMode) return _buildCategoryAccordion(isTablet);
+    if (_menuMode || widget.presentation['categoryNavigation'] == 'accordion') {
+      return _buildCategoryAccordion(isTablet);
+    }
 
     if (_filteredProducts.isEmpty) {
       return Column(
@@ -587,6 +591,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
             final globalIndex = _filteredProducts.indexOf(product);
             return ProductCard(
               product: product,
+              showImage: widget.presentation['showImages'] != false,
+              showDescription: widget.presentation['showDescriptions'] != false,
+              compact: widget.presentation['productCardDensity'] == 'compact',
               onTap: () => _openProduct(globalIndex),
             );
           },
@@ -732,7 +739,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
       itemCount: _filteredProducts.length,
       itemBuilder: (context, index) {
         final product = _filteredProducts[index];
-        return ProductCard(product: product, onTap: () => _openProduct(index));
+        return ProductCard(
+          product: product,
+          showImage: widget.presentation['showImages'] != false,
+          showDescription: widget.presentation['showDescriptions'] != false,
+          compact: widget.presentation['productCardDensity'] == 'compact',
+          onTap: () => _openProduct(index),
+        );
       },
     );
   }
