@@ -52,6 +52,30 @@ const ProductList = ({ onEdit }) => {
     const cat = product.category?.toLowerCase() || '';
     return cat === filter.toLowerCase();
   });
+  const categoriesById = new Map(categories.map(category => [category.id, category]));
+  const categoriesByDatabaseId = new Map(categories.map(category => [category.dbId, category]));
+  const groupedProducts = filteredProducts.reduce((groups, product) => {
+    const category = categoriesById.get(product.category);
+    const mainCategory = category?.parentId
+      ? categoriesByDatabaseId.get(category.parentId)
+      : category;
+    const groupId = mainCategory?.id || null;
+    const existing = groups.get(groupId) || {
+      id: groupId,
+      key: mainCategory ? `category:${mainCategory.id}` : 'orphan-products',
+      name: mainCategory?.name || 'Uncategorized',
+      order: mainCategory?.order ?? Number.MAX_SAFE_INTEGER,
+      products: []
+    };
+    groups.set(groupId, {
+      ...existing,
+      products: [...existing.products, product]
+    });
+    return groups;
+  }, new Map());
+  const productGroups = [...groupedProducts.values()].sort(
+    (a, b) => a.order - b.order || a.name.localeCompare(b.name)
+  );
 
   if (loading) {
     return (
@@ -126,74 +150,85 @@ const ProductList = ({ onEdit }) => {
           </button>
         </div>
       ) : (
-        <div className="products-grid">
-          {filteredProducts.map(product => {
-            const productId = product._id || product.dbId || product.id;
-            return (
-              <article key={productId} className={`product-card ${!product.available ? 'unavailable' : ''}`}>
-                <ProductImage product={product} />
-                <div className="product-content">
-                  <div className="product-header">
-                    <h3>{product.title}</h3>
-                    <span className="category-tag">{product.category}</span>
-                  </div>
-
-                  <p className="product-description">
-                    {product.description}
-                  </p>
-
-                  {product.ingredients && (
-                    <p className="ingredients-note">
-                      {product.ingredients}
-                    </p>
-                  )}
-
-                  <div className="product-price">
-                    {product.sizes?.length ? (
-                      <div className="product-size-prices">
-                        {product.sizes.map(size => (
-                          <span key={size.id}>
-                            {size.name}: {displayPrice(`${product.currency || 'AED'} ${size.priceAmount}`)}
-                          </span>
-                        ))}
+        productGroups.map(group => (
+          <section key={group.key} aria-labelledby={`product-group-${group.key}`}>
+            <h2
+              id={`product-group-${group.key}`}
+              className="section-title"
+              style={{ margin: '28px 0 14px' }}
+            >
+              {group.name} ({group.products.length})
+            </h2>
+            <div className="products-grid">
+              {group.products.map(product => {
+                const productId = product._id || product.dbId || product.id;
+                return (
+                  <article key={productId} className={`product-card ${!product.available ? 'unavailable' : ''}`}>
+                    <ProductImage product={product} />
+                    <div className="product-content">
+                      <div className="product-header">
+                        <h3>{product.title}</h3>
+                        <span className="category-tag">{product.category}</span>
                       </div>
-                    ) : displayPrice(product.price)}
-                  </div>
 
-                  <div className="product-actions">
-                    <button
-                      className="btn btn-sm btn-ghost"
-                      disabled={pending[productId]}
-                      onClick={() => handleToggle(productId)}
-                      title={product.available ? 'Suspend from menu' : 'Make available for service'}
-                    >
-                      {product.available ? <PauseCircleIcon /> : <PlayCircleIcon />}
-                      <span>{pending[productId] ? 'Saving...' : product.available ? 'Suspend' : 'Resume'}</span>
-                    </button>
-                    <button
-                      className="btn btn-sm btn-ghost"
-                      disabled={pending[productId]}
-                      onClick={() => onEdit(product)}
-                      title="Edit product details"
-                    >
-                      <PencilIcon />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      className="btn btn-sm btn-ghost-danger"
-                      disabled={pending[productId]}
-                      onClick={() => handleDelete(productId, product.title)}
-                      title="Delete from catalog"
-                    >
-                      <TrashIcon />
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                      <p className="product-description">
+                        {product.description}
+                      </p>
+
+                      {product.ingredients && (
+                        <p className="ingredients-note">
+                          {product.ingredients}
+                        </p>
+                      )}
+
+                      <div className="product-price">
+                        {product.sizes?.length ? (
+                          <div className="product-size-prices">
+                            {product.sizes.map(size => (
+                              <span key={size.id}>
+                                {size.name}: {displayPrice(`${product.currency || 'AED'} ${size.priceAmount}`)}
+                              </span>
+                            ))}
+                          </div>
+                        ) : displayPrice(product.price)}
+                      </div>
+
+                      <div className="product-actions">
+                        <button
+                          className="btn btn-sm btn-ghost"
+                          disabled={pending[productId]}
+                          onClick={() => handleToggle(productId)}
+                          title={product.available ? 'Suspend from menu' : 'Make available for service'}
+                        >
+                          {product.available ? <PauseCircleIcon /> : <PlayCircleIcon />}
+                          <span>{pending[productId] ? 'Saving...' : product.available ? 'Suspend' : 'Resume'}</span>
+                        </button>
+                        <button
+                          className="btn btn-sm btn-ghost"
+                          disabled={pending[productId]}
+                          onClick={() => onEdit(product)}
+                          title="Edit product details"
+                        >
+                          <PencilIcon />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          className="btn btn-sm btn-ghost-danger"
+                          disabled={pending[productId]}
+                          onClick={() => handleDelete(productId, product.title)}
+                          title="Delete from catalog"
+                        >
+                          <TrashIcon />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ))
       )}
     </div>
   );
