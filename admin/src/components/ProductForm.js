@@ -44,10 +44,14 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [mainCategory, setMainCategory] = useState('');
   const { categories, saveProduct, brand } = useCatalog();
-  const mainCategories = categories.filter(category => !category.parentId);
+  const mainCategories = categories.filter(category => !category.parentId && !category.parent);
   const selectedMain = mainCategories.find(category => category.id === mainCategory);
+  const matchesCategoryId = (category, value) =>
+    Boolean(category) && (category.id === value || category.dbId === value);
   const subcategories = categories.filter(
-    category => category.parentId === selectedMain?.dbId
+    category => matchesCategoryId(selectedMain, category.parentId)
+      || category.parent?.id === selectedMain?.dbId
+      || category.parent?.id === selectedMain?.id
   );
 
   const getErrorMessage = (error) => {
@@ -77,7 +81,10 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
   useEffect(() => {
     if (!product || !categories.length) return;
     const selectedCategory = categories.find(category => category.id === product.category);
-    const parent = categories.find(category => category.dbId === selectedCategory?.parentId);
+    const parent = categories.find(category =>
+      matchesCategoryId(category, selectedCategory?.parentId)
+      || category.dbId === selectedCategory?.parent?.id
+    );
     setMainCategory(parent?.id || selectedCategory?.id || '');
   }, [product, categories]);
 
@@ -87,8 +94,13 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
   const defaultCategoryDbId = mainCategories[0]?.dbId;
   useEffect(() => {
     if (!product && defaultCategory) {
-      const children = categories.filter(
-        category => category.parentId === defaultCategoryDbId
+      const children = categories.filter(category =>
+        matchesCategoryId(
+          categories.find(item => item.id === defaultCategory),
+          category.parentId
+        )
+        || category.parent?.id === defaultCategoryDbId
+        || category.parent?.id === defaultCategory
       );
       setMainCategory(defaultCategory);
       setFormData(previous => previous.category
@@ -152,8 +164,10 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
   const handleMainCategoryChange = (e) => {
     const nextMainCategory = e.target.value;
     const nextMain = mainCategories.find(category => category.id === nextMainCategory);
-    const children = categories.filter(
-      category => category.parentId === nextMain?.dbId
+    const children = categories.filter(category =>
+      matchesCategoryId(nextMain, category.parentId)
+      || category.parent?.id === nextMain?.dbId
+      || category.parent?.id === nextMain?.id
     );
     setMainCategory(nextMainCategory);
     setFormData(previous => ({
