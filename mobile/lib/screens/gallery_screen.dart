@@ -513,7 +513,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
               }).toList(),
             ),
           ),
-          if (_selectedMainCategory != null)
+          if (_selectedMainCategory == null)
+            _buildProductSection(isTablet, 'All Items', _allProducts)
+          else
             _buildExpandedCategoryProducts(isTablet),
         ],
       ),
